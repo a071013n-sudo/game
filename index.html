@@ -4,6 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <title>RESONANCE ARENA — 共鳴闘技場</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='0' y2='1'%3E%3Cstop offset='0' stop-color='%23FFC24B'/%3E%3Cstop offset='1' stop-color='%23FF6B4A'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='64' height='64' rx='14' fill='%2307091A'/%3E%3Ccircle cx='32' cy='32' r='21' fill='none' stroke='url(%23g)' stroke-width='4'/%3E%3Cpath d='M32 17 L41 32 L32 47 L23 32 Z' fill='url(%23g)'/%3E%3C/svg%3E">
+
 <style>
   :root{
     --ink:#07091A;
@@ -17,6 +19,7 @@
     --ui:'Hiragino Sans','Hiragino Kaku Gothic ProN','Noto Sans JP','Yu Gothic',system-ui,sans-serif;
   }
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  button,input,select{font:inherit;color:inherit;background:none;border:none;-webkit-appearance:none;appearance:none;}
   html,body{margin:0;padding:0;height:100%;overflow:hidden;background:#000;font-family:var(--ui);color:var(--bone);}
   #app{position:fixed;inset:0;}
   canvas#gl{position:absolute;inset:0;width:100%;height:100%;display:block;}
@@ -35,6 +38,16 @@
   .slab > span{display:inline-block;transform:skewX(9deg);}
   .slab:hover,.slab:focus-visible{background:linear-gradient(160deg,var(--gold),var(--coral));color:#180A05;border-color:var(--gold);transform:skewX(-9deg) translateY(-2px);outline:none;}
   .slab.on{background:linear-gradient(160deg,var(--gold),var(--coral));color:#180A05;border-color:#fff;}
+  /* primary CTA: the one decisive action on a screen gets permanent
+     weight instead of relying on hover state to read as "the" button */
+  .slab.primary{
+    background:linear-gradient(160deg,var(--gold),var(--coral));color:#180A05;border-color:#fff;
+    box-shadow:0 8px 34px rgba(255,138,61,.42),0 6px 22px rgba(0,0,0,.5);
+    font-size:16px;padding:.6em 1.8em;
+  }
+  .slab.primary:hover,.slab.primary:focus-visible{filter:brightness(1.08);transform:skewX(-9deg) translateY(-3px);}
+  .slab.ghost{background:rgba(255,255,255,.05);border-color:rgba(255,255,255,.14);box-shadow:none;opacity:.85;}
+  .slab.ghost:hover,.slab.ghost:focus-visible{opacity:1;}
 
   .screen{position:absolute;inset:0;display:none;flex-direction:column;align-items:center;justify-content:center;
     padding:max(16px,env(safe-area-inset-top)) 16px max(16px,env(safe-area-inset-bottom));}
@@ -45,12 +58,16 @@
   #title{background:radial-gradient(120% 90% at 50% 35%,rgba(61,20,80,.55),rgba(7,9,26,.92) 70%);}
   #title .mark{font-size:clamp(11px,2.6vw,14px);letter-spacing:.62em;color:var(--gold);margin-bottom:10px;text-indent:.62em;}
   #title h1{
-    margin:0;font-size:clamp(38px,11.5vw,118px);line-height:.84;font-weight:900;letter-spacing:-.02em;
+    position:relative;margin:0;font-size:clamp(38px,11.5vw,118px);line-height:.84;font-weight:900;letter-spacing:-.02em;
     background:linear-gradient(178deg,#fff 8%,var(--gold) 46%,var(--coral) 78%);
     -webkit-background-clip:text;background-clip:text;color:transparent;
-    filter:drop-shadow(0 0 34px rgba(255,107,74,.45));
+    -webkit-text-stroke:1.5px rgba(30,10,10,.55);
+    filter:drop-shadow(0 0 34px rgba(255,107,74,.45)) drop-shadow(0 3px 0 rgba(20,4,4,.5));
     transform:skewX(-6deg);
   }
+  #title h1 .ext{position:absolute;inset:0;z-index:-1;-webkit-text-fill-color:#170a12;color:#170a12;
+    -webkit-text-stroke:0;background:none;filter:none;text-shadow:none;
+    transform:translate(3px,7px);opacity:.85;}
   #title h2{margin:14px 0 0;font-size:clamp(13px,3.4vw,20px);font-weight:700;letter-spacing:.5em;color:rgba(244,239,228,.7);text-indent:.5em;}
   #title .rule{width:min(560px,84vw);height:1px;background:linear-gradient(90deg,transparent,var(--gold),transparent);margin:26px 0 30px;}
   #title .menu{display:flex;gap:12px;flex-wrap:wrap;justify-content:center;}
@@ -86,9 +103,14 @@
   /* ---------- HUD ---------- */
   #hud{position:absolute;inset:0;pointer-events:none;display:none;}
   #hud.show{display:block;}
-  .port{position:absolute;bottom:max(10px,env(safe-area-inset-bottom));display:flex;align-items:flex-end;gap:9px;}
-  .port.l{left:max(14px,env(safe-area-inset-left));}
-  .port.r{right:max(14px,env(safe-area-inset-right));flex-direction:row-reverse;}
+  .port{position:absolute;bottom:max(10px,env(safe-area-inset-bottom));display:flex;align-items:flex-end;gap:9px;
+    padding:10px 30px 10px 16px;}
+  .port.l{left:max(0px,env(safe-area-inset-left));
+    background:linear-gradient(100deg,rgba(6,7,18,.58) 0%,rgba(6,7,18,.30) 62%,transparent 100%);
+    border-left:3px solid var(--p1);clip-path:polygon(0 0,100% 0,88% 100%,0% 100%);}
+  .port.r{right:max(0px,env(safe-area-inset-right));flex-direction:row-reverse;padding:10px 16px 10px 30px;
+    background:linear-gradient(260deg,rgba(6,7,18,.58) 0%,rgba(6,7,18,.30) 62%,transparent 100%);
+    border-right:3px solid var(--p2);clip-path:polygon(12% 0,100% 0,100% 100%,0% 100%);}
   .pct{
     font-weight:900;font-style:italic;line-height:.8;letter-spacing:-.045em;
     font-size:clamp(38px,9vw,68px);
@@ -118,7 +140,10 @@
   .mtr.deny i{background:#FF5C6E !important;}
   #timer{position:absolute;top:max(10px,env(safe-area-inset-top));left:50%;transform:translateX(-50%);
     font-weight:900;font-size:clamp(18px,4.4vw,28px);letter-spacing:.06em;
-    text-shadow:0 2px 0 rgba(0,0,0,.6);opacity:.92;font-variant-numeric:tabular-nums;}
+    text-shadow:0 2px 0 rgba(0,0,0,.6);opacity:.92;font-variant-numeric:tabular-nums;
+    padding:.22em 1em;background:linear-gradient(160deg,rgba(9,10,24,.62),rgba(9,10,24,.30));
+    border:1px solid rgba(255,255,255,.14);border-bottom:1px solid rgba(255,255,255,.05);
+    box-shadow:0 6px 20px rgba(0,0,0,.4);backdrop-filter:blur(6px);}
   .ind{position:absolute;left:0;top:0;display:none;align-items:center;justify-content:center;
     width:52px;height:52px;margin:-26px 0 0 -26px;pointer-events:none;will-change:transform;}
   .ind i{position:absolute;inset:0;border-radius:50%;border:2px solid currentColor;
@@ -164,11 +189,34 @@
 
   /* ---------- pause / results ---------- */
   #pause,#results{background:rgba(7,9,26,.9);backdrop-filter:blur(14px);}
-  #pause h3,#results h3{margin:0 0 6px;font-size:clamp(24px,7vw,52px);font-weight:900;letter-spacing:.16em;text-indent:.16em;}
-  #results .win{font-size:clamp(20px,5.5vw,38px);font-weight:900;letter-spacing:.08em;color:var(--gold);margin:6px 0 24px;}
-  .kv{display:flex;gap:26px;margin-bottom:26px;font-size:12px;letter-spacing:.14em;flex-wrap:wrap;justify-content:center;}
+  #pause h3,#results h3{margin:0 0 6px;font-size:clamp(24px,7vw,52px);font-weight:900;letter-spacing:.16em;text-indent:.16em;
+    animation:resRise .5s cubic-bezier(.2,.9,.3,1) both;}
+  #results .win{font-size:clamp(20px,5.5vw,38px);font-weight:900;letter-spacing:.08em;color:var(--gold);margin:6px 0 24px;
+    text-shadow:0 0 34px currentColor;animation:resRise .55s .06s cubic-bezier(.2,.9,.3,1) both;}
+  .kv{display:flex;gap:26px;margin-bottom:26px;font-size:12px;letter-spacing:.14em;flex-wrap:wrap;justify-content:center;
+    animation:resRise .55s .16s cubic-bezier(.2,.9,.3,1) both;}
   .kv div{text-align:center;}
   .kv b{display:block;font-size:26px;margin-top:4px;letter-spacing:0;}
+  #results{overflow:hidden;}
+  #results .slab{animation:resRise .55s .24s cubic-bezier(.2,.9,.3,1) both;}
+  @keyframes resRise{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
+  .resGlow{position:absolute;inset:0;pointer-events:none;opacity:0;
+    background:radial-gradient(46% 60% at 50% 38%,var(--res-c,var(--gold)) 0%,transparent 72%);
+    mix-blend-mode:screen;animation:resGlowIn 1.4s ease both;}
+  @keyframes resGlowIn{from{opacity:0}30%{opacity:.55}to{opacity:.28}}
+  .resPortraitWrap{position:relative;width:min(30vw,220px);height:min(30vw,220px);margin-bottom:6px;
+    animation:resPortraitIn .6s cubic-bezier(.16,1.2,.3,1) both;}
+  @keyframes resPortraitIn{from{opacity:0;transform:scale(.75) translateY(10px)}to{opacity:1;transform:scale(1) translateY(0)}}
+  .resPortrait{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border-radius:50%;
+    border:2px solid rgba(255,255,255,.65);box-shadow:0 0 0 8px rgba(255,255,255,.05),0 0 60px 6px var(--res-c,var(--gold)),0 18px 40px rgba(0,0,0,.55);}
+  .confetti{position:absolute;inset:0;pointer-events:none;overflow:hidden;}
+  .confetti i{position:absolute;top:-8%;width:8px;height:14px;opacity:0;border-radius:1px;
+    animation-name:confettiFall;animation-timing-function:cubic-bezier(.4,.1,.6,.9);animation-iteration-count:1;animation-fill-mode:forwards;}
+  @keyframes confettiFall{
+    0%{opacity:0;transform:translate3d(0,0,0) rotate(0deg)}
+    6%{opacity:.95}
+    100%{opacity:0;transform:translate3d(var(--dx,40px),108vh,0) rotate(var(--rot,540deg))}
+  }
 
   /* ---------- help ---------- */
   #help{background:rgba(7,9,26,.95);overflow:auto;align-items:center;}
@@ -220,13 +268,13 @@
 
   <div class="screen" id="title">
     <div class="mark">THREE.JS PLATFORM FIGHTER</div>
-    <h1>RESONANCE<br>ARENA</h1>
+    <h1><span class="ext" aria-hidden="true">RESONANCE<br>ARENA</span>RESONANCE<br>ARENA</h1>
     <h2>共鳴闘技場</h2>
     <div class="rule"></div>
     <div class="menu">
-      <button class="slab" id="btnSolo"><span>ひとりで戦う</span></button>
+      <button class="slab primary" id="btnSolo"><span>ひとりで戦う</span></button>
       <button class="slab" id="btnVs"><span>2人で戦う</span></button>
-      <button class="slab" id="btnHelp"><span>操作方法</span></button>
+      <button class="slab ghost" id="btnHelp"><span>操作方法</span></button>
     </div>
     <div class="foot">オリジナルキャラクター／完全オフライン動作可（Three.js を同梱すれば file:// でも動きます）</div>
   </div>
@@ -241,8 +289,8 @@
       <div class="opt" id="cpuOpt"><span class="lb">CPU</span><span class="chip" data-c="2">弱</span><span class="chip on" data-c="5">中</span><span class="chip" data-c="8">強</span><span class="chip" data-c="9">鬼</span></div>
     </div>
     <div style="display:flex;gap:12px">
-      <button class="slab" id="btnBack"><span>もどる</span></button>
-      <button class="slab" id="btnFight"><span>READY — 開始</span></button>
+      <button class="slab ghost" id="btnBack"><span>もどる</span></button>
+      <button class="slab primary" id="btnFight"><span>READY — 開始</span></button>
     </div>
   </div>
 
@@ -250,19 +298,22 @@
     <h3>PAUSE</h3>
     <div style="height:22px"></div>
     <div style="display:flex;gap:12px;flex-wrap:wrap;justify-content:center">
-      <button class="slab" id="btnResume"><span>もどる</span></button>
-      <button class="slab" id="btnRestart"><span>やり直す</span></button>
-      <button class="slab" id="btnQuit"><span>タイトルへ</span></button>
+      <button class="slab primary" id="btnResume"><span>もどる</span></button>
+      <button class="slab ghost" id="btnRestart"><span>やり直す</span></button>
+      <button class="slab ghost" id="btnQuit"><span>タイトルへ</span></button>
     </div>
   </div>
 
   <div class="screen" id="results">
+    <div class="resGlow" id="resGlow"></div>
+    <div class="confetti" id="confetti"></div>
+    <div class="resPortraitWrap" id="resPortraitWrap"><img class="resPortrait" id="resPortrait" alt=""></div>
     <h3>GAME SET</h3>
     <div class="win" id="winner"></div>
     <div class="kv" id="stats"></div>
     <div style="display:flex;gap:12px">
-      <button class="slab" id="btnAgain"><span>もう一度</span></button>
-      <button class="slab" id="btnToTitle"><span>タイトルへ</span></button>
+      <button class="slab primary" id="btnAgain"><span>もう一度</span></button>
+      <button class="slab ghost" id="btnToTitle"><span>タイトルへ</span></button>
     </div>
   </div>
 
@@ -292,7 +343,7 @@
       消費量はキャラごとに違い、飛び道具で戦うホムラは安く、一撃の重いガンロウは高めです。<br>
       <b>例外：場外に出ている間の上必殺（復帰）は無料。</b>ゲージが空でも必ず戻ってこられます。</p>
       <p><b>勝ちかた：</b>ダメージ％が高いほど遠くへ吹っ飛びます。相手を画面外（ブラストゾーン）へ飛ばしてストックを削りきれば勝利。</p>
-      <button class="slab" id="btnHelpBack"><span>もどる</span></button>
+      <button class="slab ghost" id="btnHelpBack"><span>もどる</span></button>
     </div>
   </div>
 
@@ -303,7 +354,7 @@
   <pre id="err"></pre>
 </div>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="vendor/three.min.js"></script>
 <script>
 "use strict";
 /* ═══════════════════════════════════════════════════════════════════════════
@@ -2683,8 +2734,11 @@ const VFX = {
   impact(x, y, h, dmg, col, kb) {
     const heavy = dmg > 10;
     const c = h.fx === 'fire' ? '#FF9A3C' : (h.fx === 'bolt' ? '#AFF0FF' : (h.fx === 'quake' ? '#E0B77A' : '#FFF1C9'));
-    this.s.spawn({ x, y, tex: TEX.flare, col: c, life: heavy ? 15 : 10, s0: (heavy ? 1.5 : .95) * (h.sz || 1), s1: (heavy ? 3.4 : 2.0) * (h.sz || 1), rot: rand(0, TAU), fadePow: 1.6 });
-    this.s.spawn({ x, y, tex: TEX.ring, col: '#FFFFFF', life: heavy ? 20 : 13, s0: .3, s1: (heavy ? 3.6 : 2.1) * (h.sz || 1), rot: rand(0, TAU), spin: rand(-.04, .04), fadePow: 2 });
+    // a hard white flash sells the instant of contact even in a single frame —
+    // small and fast-decaying so rapid hits can't stack into a screen-wide wash
+    this.s.spawn({ x, y, tex: TEX.dot, col: '#FFFFFF', life: heavy ? 5 : 4, s0: (heavy ? 1.3 : .85) * (h.sz || 1), s1: .15, fadePow: 2.4 });
+    this.s.spawn({ x, y, tex: TEX.flare, col: c, life: heavy ? 17 : 12, s0: (heavy ? 2.0 : 1.3) * (h.sz || 1), s1: (heavy ? 3.8 : 2.4) * (h.sz || 1), rot: rand(0, TAU), fadePow: 1.6 });
+    this.s.spawn({ x, y, tex: TEX.ring, col: '#FFFFFF', life: heavy ? 22 : 15, s0: .5, s1: (heavy ? 4.2 : 2.6) * (h.sz || 1), rot: rand(0, TAU), spin: rand(-.04, .04), fadePow: 2 });
     if (heavy) this.s.spawn({ x, y, tex: TEX.dot, col: c, life: 26, s0: .8, s1: 4.2, fadePow: 2.4 });
     const n = heavy ? 26 : 13;
     for (let i = 0; i < n; i++) {
@@ -3148,15 +3202,21 @@ class Post {
       }`, { tD: { value: null }, uDir: { value: new THREE.Vector2() } });
     this.mkPass('comp', `
       uniform sampler2D tD, tB, tB2; uniform vec2 uRes;
-      uniform float uCA, uVig, uGrain, uT, uFlash, uSat, uExp;
+      uniform float uCA, uVig, uGrain, uT, uFlash, uSat, uExp, uHit;
       varying vec2 vUv;
       vec3 aces(vec3 x){ return clamp((x*(2.51*x+0.03))/(x*(2.43*x+0.59)+0.14),0.0,1.0); }
       void main(){
         vec2 uv = vUv;
         vec2 d = uv - 0.5;
         float r2 = dot(d,d);
-        // barrel-ish chromatic split, strongest at the corners
-        vec2 off = d * r2 * uCA;
+        // barrel-ish chromatic split: kept out of the readable center-stage
+        // area entirely (gated by distance), only framing the far corners —
+        // plus a separate un-gated pulse so hit impacts still read at center.
+        float caK = smoothstep(0.14, 0.32, r2);
+        // the hit pulse is a small FIXED offset, not distance-scaled — a
+        // distance-scaled term blows up at the screen edges (far mountains
+        // etc.) into a full-frame RGB tear, which is not the intent.
+        vec2 off = d * caK * uCA + vec2(uHit, uHit * 0.6);
         vec3 c;
         c.r = texture2D(tD, uv - off).r;
         c.g = texture2D(tD, uv).g;
@@ -3179,7 +3239,7 @@ class Post {
         gl_FragColor = vec4(c,1.0);
       }`, {
       tD: { value: null }, tB: { value: null }, tB2: { value: null },
-      uRes: { value: new THREE.Vector2(w, h) }, uCA: { value: 0.30 }, uVig: { value: 0.85 },
+      uRes: { value: new THREE.Vector2(w, h) }, uCA: { value: 0.014 }, uHit: { value: 0 }, uVig: { value: 0.85 },
       uGrain: { value: 0.030 }, uT: { value: 0 }, uFlash: { value: 0 }, uSat: { value: 1.12 }, uExp: { value: 1.04 }
     });
   }
@@ -3806,6 +3866,31 @@ const UI = {
       '<div>' + (i === 0 ? 'P1' : (this.mode === 'solo' ? 'CPU' : 'P2')) + ' ' + f.def.name +
       '<b style="color:' + f.def.fx + '">' + f.kos + '</b><span style="opacity:.5">KO · ' + f.falls + '落ち · ' + Math.round(f.dmgDealt) + '%与ダメ</span></div>'
     ).join('');
+
+    const glowC = winner ? winner.def.fx : '#F4EFE4';
+    document.getElementById('results').style.setProperty('--res-c', glowC);
+    const pw = document.getElementById('resPortraitWrap'), pImg = document.getElementById('resPortrait');
+    if (winner && GAME.portraits) {
+      pImg.src = GAME.portraits[ROSTER.indexOf(winner.def)] || '';
+      pw.style.display = '';
+    } else pw.style.display = 'none';
+
+    const cc = document.getElementById('confetti');
+    cc.innerHTML = '';
+    if (winner) {
+      const palette = [glowC, '#FFC24B', '#FF6B4A', '#F4EFE4'];
+      for (let i = 0; i < 46; i++) {
+        const e = document.createElement('i');
+        const dx = (Math.random() * 2 - 1) * 160, rot = 360 + Math.random() * 720;
+        e.style.left = (Math.random() * 100) + '%';
+        e.style.background = palette[i % palette.length];
+        e.style.setProperty('--dx', dx.toFixed(0) + 'px');
+        e.style.setProperty('--rot', rot.toFixed(0) + 'deg');
+        e.style.animationDuration = (1.6 + Math.random() * 1.3).toFixed(2) + 's';
+        e.style.animationDelay = (Math.random() * .5).toFixed(2) + 's';
+        cc.appendChild(e);
+      }
+    }
     SFX.stopMusic();
   }
 };
@@ -3960,6 +4045,7 @@ function boot() {
 
       setTimeout(() => {
         const portraits = renderPortraits();
+        GAME.portraits = portraits;
         buildRoster(portraits);
         UI.refreshSel();
         stepBar(1);
@@ -4048,7 +4134,7 @@ function loop(now) {
 
   w.flash = Math.max(0, w.flash - dt * 2.4);
   const cu = G.post.scenes.comp.mat.uniforms;
-  cu.uCA.value = 0.28 + w.flash * 1.5 + (w.slowmo > 0 ? .35 : 0);
+  cu.uHit.value = w.flash * 0.006 + (w.slowmo > 0 ? .0025 : 0);
   cu.uSat.value = 1.12 + w.flash * .5;
   cu.uExp.value = 1.04 + (w.slowmo > 0 ? .06 : 0);
   G.post.render(G.scene, G.cam, G.t, w.flash);
