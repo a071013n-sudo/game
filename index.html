@@ -102,6 +102,20 @@
   .port.r .stocks{justify-content:flex-end;}
   .stk{width:11px;height:11px;transform:rotate(45deg);border:1.5px solid rgba(255,255,255,.35);}
   .stk.on{background:currentColor;border-color:#fff;box-shadow:0 0 12px currentColor;}
+  .mtr{position:relative;width:104px;height:7px;margin-top:7px;background:rgba(9,12,28,.66);
+    border:1px solid rgba(255,255,255,.16);overflow:hidden;transition:box-shadow .18s;}
+  .port.r .mtr{margin-left:auto;}
+  .mtr i{display:block;height:100%;width:0%;background:currentColor;
+    box-shadow:0 0 10px currentColor;transition:width .10s linear;}
+  .mtr b{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+    font-size:7px;font-weight:900;letter-spacing:.22em;text-indent:.22em;color:rgba(255,255,255,.72);
+    text-shadow:0 1px 2px rgba(0,0,0,.9);pointer-events:none;}
+  .mtr.rdy{border-color:rgba(255,255,255,.62);box-shadow:0 0 14px currentColor;}
+  .mtr.rdy i{animation:mtrPulse 1.05s ease-in-out infinite;}
+  @keyframes mtrPulse{0%,100%{filter:brightness(1);}50%{filter:brightness(1.7);}}
+  .mtr.deny{animation:mtrDeny .26s ease-out;}
+  @keyframes mtrDeny{0%,100%{transform:translateX(0);}25%{transform:translateX(-4px);}75%{transform:translateX(4px);}}
+  .mtr.deny i{background:#FF5C6E !important;}
   #timer{position:absolute;top:max(10px,env(safe-area-inset-top));left:50%;transform:translateX(-50%);
     font-weight:900;font-size:clamp(18px,4.4vw,28px);letter-spacing:.06em;
     text-shadow:0 2px 0 rgba(0,0,0,.6);opacity:.92;font-variant-numeric:tabular-nums;}
@@ -180,11 +194,13 @@
     <div id="timer">∞</div>
     <div class="port l" id="portL">
       <div class="pct" id="pctL">0<sup>%</sup></div>
-      <div class="meta"><div class="who" id="whoL">P1</div><div class="stocks" id="stkL"></div></div>
+      <div class="meta"><div class="who" id="whoL">P1</div><div class="stocks" id="stkL"></div>
+        <div class="mtr" id="mtrL"><i></i><b>必殺</b></div></div>
     </div>
     <div class="port r" id="portR">
       <div class="pct" id="pctR">0<sup>%</sup></div>
-      <div class="meta"><div class="who" id="whoR">CPU</div><div class="stocks" id="stkR"></div></div>
+      <div class="meta"><div class="who" id="whoR">CPU</div><div class="stocks" id="stkR"></div>
+        <div class="mtr" id="mtrR"><i></i><b>必殺</b></div></div>
     </div>
     <div class="ind" id="ind0"><i></i><u></u><b></b></div>
     <div class="ind" id="ind1"><i></i><u></u><b></b></div>
@@ -261,7 +277,7 @@
         <div><span>強攻撃</span>方向＋J</div>
         <div><span>スマッシュ</span>方向をはじく＋J（長押しで溜め）</div>
         <div><span>空中攻撃</span>空中で方向＋J</div>
-        <div><span>必殺技</span>K ／ 方向＋K</div>
+        <div><span>必殺技</span>K ／ 方向＋K（共鳴ゲージを消費）</div>
         <div><span>復帰</span>↑＋K（上必殺）</div>
         <div><span>ガード</span>L（押しっぱなし）</div>
         <div><span>回避</span>ガード＋方向 ／ 空中でL</div>
@@ -270,6 +286,11 @@
       </div>
       <p>2P（青）は ← → ↑ ↓ ／ 攻撃 ＝ テンキー1、必殺 ＝ 2、ガード ＝ 3、アピール ＝ テンキー0。<br>
       ゲームパッド（Xbox / DualSense 等）も自動で認識します。スマホでは画面下の仮想パッドが出ます。</p>
+      <h3 style="margin-top:18px">共鳴ゲージ</h3>
+      <p>必殺技はダメージ表示の下のゲージを消費します。<b>攻撃を当てる</b>と大きく、<b>被弾・ガード</b>でも少し溜まります。
+      ゲージ不足で必殺を押すとゲージが赤く弾かれて不発になります。<br>
+      消費量はキャラごとに違い、飛び道具で戦うホムラは安く、一撃の重いガンロウは高めです。<br>
+      <b>例外：場外に出ている間の上必殺（復帰）は無料。</b>ゲージが空でも必ず戻ってこられます。</p>
       <p><b>勝ちかた：</b>ダメージ％が高いほど遠くへ吹っ飛びます。相手を画面外（ブラストゾーン）へ飛ばしてストックを削りきれば勝利。</p>
       <button class="slab" id="btnHelpBack"><span>もどる</span></button>
     </div>
@@ -756,6 +777,227 @@ const POSE = {
   taunt: P({ torso: [-6, 0, 0], head: [-14, 0, 0], armR: [-160, 0, 30], foreR: [-30, 0, 0], armL: [-20, 0, -60], foreL: [-100, 0, 0], thighL: [10, 0, -6], thighR: [6, 0, 6] })
 };
 
+/* ── per-fighter attack keyframes ──────────────────────────────────────
+   Everyone shares one skeleton, but nobody should share a silhouette.
+   Kaite strikes with open palms and whipping spin kicks; Ganroh swings
+   like an axe and lands like a dropped anvil; Homura fights at arm's
+   length through a fan; Rai keeps a hand on the sheath until the last
+   possible frame. Same frame data underneath — completely different read. */
+Object.assign(POSE, {
+  /* カイト ── 掌打と回し蹴り */
+  k_jab1_w: P({ TURN: -22, torso: [2, 0, 0], armR: [-52, 0, 52], foreR: [-96, 0, 0], armL: [-46, 0, -58], foreL: [-104, 0, 0], thighR: [-12, 0, 6], ROOT: [-0.04, 0] }),
+  k_jab1_h: P({ TURN: 30, torso: [4, 0, 0], armR: [-92, 0, 4], foreR: [0, 0, 0], handR: [0, 0, -26], armL: [-40, 0, -88], foreL: [-96, 0, 0], LEAN: -6, ROOT: [0.14, 0] }),
+  k_jab2_h: P({ TURN: -28, torso: [4, 0, 0], armL: [-92, 0, -4], foreL: [0, 0, 0], handL: [0, 0, 26], armR: [-40, 0, 88], foreR: [-96, 0, 0], LEAN: -4, ROOT: [0.14, 0] }),
+  k_jab3_h: P({ TURN: 46, torso: [6, 0, 0], armR: [-74, 0, -26], foreR: [-10, 0, 0], armL: [-30, 0, -120], foreL: [-20, 0, 0], thighR: [30, 0, 8], shinR: [-26, 0, 0], LEAN: -12, ROOT: [0.2, 0.04] }),
+  k_ftilt_h: P({ TURN: 24, torso: [-6, 0, 0], thighR: [-64, 0, 14], shinR: [-16, 0, 0], footR: [-18, 0, 0], thighL: [16, 0, -6], shinL: [-18, 0, 0], armR: [-30, 0, 86], foreR: [-64, 0, 0], armL: [-58, 0, -70], foreL: [-52, 0, 0], LEAN: 14, ROOT: [0.1, 0.04] }),
+  k_fsmash_w: P({ TURN: -50, torso: [-8, 0, 0], chest: [-6, 0, 0], armR: [-8, 0, 116], foreR: [-128, 0, 0], armL: [-14, 0, -96], foreL: [-124, 0, 0], thighR: [-20, 0, 6], thighL: [40, 0, -8], shinL: [-44, 0, 0], LEAN: 12, ROOT: [-0.18, -0.14] }),
+  k_fsmash_h: P({ TURN: 26, torso: [8, 0, 0], chest: [6, 0, 0], armR: [-90, 0, 14], foreR: [0, 0, 0], handR: [0, 0, -30], armL: [-84, 0, -22], foreL: [-6, 0, 0], handL: [0, 0, 30], thighR: [50, 0, 6], shinR: [-40, 0, 0], thighL: [-26, 0, -6], LEAN: -16, ROOT: [0.4, -0.06], STRETCH: 1.04 }),
+  k_usmash_h: P({ torso: [-16, 0, 0], head: [-22, 0, 0], armR: [-172, 0, 22], foreR: [0, 0, 0], handR: [0, 0, -20], armL: [-172, 0, -22], foreL: [0, 0, 0], handL: [0, 0, 20], thighL: [-14, 0, -6], thighR: [-10, 0, 6], ROOT: [0, 0.26], STRETCH: 1.14 }),
+  k_dsmash_h: P({ TURN: -20, torso: [34, 0, 0], armR: [26, 0, 54], foreR: [-30, 0, 0], armL: [10, 0, -130], foreL: [-10, 0, 0], thighL: [96, 0, -16], shinL: [-30, 0, 0], thighR: [46, 0, 44], shinR: [-14, 0, 0], ROOT: [0, -0.56], SQUASH: 1.2 }),
+  k_fair_h: P({ TURN: 18, torso: [14, 0, 0], thighR: [-70, 0, 10], shinR: [-12, 0, 0], footR: [-20, 0, 0], thighL: [52, 0, -10], shinL: [-54, 0, 0], armR: [-40, 0, 44], foreR: [-52, 0, 0], armL: [-96, 0, -62], LEAN: -20, ROOT: [0.16, 0] }),
+  k_bair_h: P({ TURN: -50, torso: [-16, 0, 0], thighL: [64, 0, -34], shinL: [-8, 0, 0], footL: [-14, 0, 0], thighR: [-30, 0, 12], armR: [-88, 0, 46], foreR: [-30, 0, 0], armL: [-20, 0, -148], ROOT: [-0.2, 0.02], STRETCH: 1.06 }),
+  k_cast_w: P({ TURN: -34, torso: [-8, 0, 0], armR: [-24, 0, 96], foreR: [-116, 0, 0], armL: [-34, 0, -58], foreL: [-108, 0, 0], thighL: [26, 0, -8], shinL: [-30, 0, 0], LEAN: 10, ROOT: [-0.1, -0.08] }),
+  k_cast_h: P({ TURN: 28, torso: [10, 0, 0], armR: [-94, 0, 8], foreR: [0, 0, 0], handR: [0, 0, -28], armL: [-16, 0, -118], foreL: [-46, 0, 0], thighR: [34, 0, 6], shinR: [-28, 0, 0], LEAN: -12, ROOT: [0.24, 0] }),
+  k_chargeUp: P({ torso: [-6, 0, 0], head: [-6, 0, 0], armR: [-30, 0, 58], foreR: [-126, 0, 0], armL: [-30, 0, -58], foreL: [-126, 0, 0], thighL: [40, 0, -14], shinL: [-56, 0, 0], thighR: [34, 0, 14], shinR: [-50, 0, 0], ROOT: [0, -0.2] }),
+  k_spinDash: P({ TURN: -34, torso: [-14, 0, 0], armR: [-30, 0, 104], foreR: [-70, 0, 0], armL: [-30, 0, -104], foreL: [-70, 0, 0], thighL: [-34, 0, -10], thighR: [40, 0, 10], shinR: [-58, 0, 0], LEAN: 16, ROOT: [-0.12, 0.04] }),
+  k_windGuard: P({ TURN: 14, torso: [-4, 0, 0], armR: [-104, 0, -16], foreR: [-96, 0, 0], armL: [-104, 0, 16], foreL: [-96, 0, 0], thighL: [28, 0, -12], shinL: [-36, 0, 0], thighR: [22, 0, 12], shinR: [-30, 0, 0], ROOT: [0, -0.12] }),
+
+  /* ガンロウ ── 斧の一撃と地響き */
+  g_jab1_w: P({ TURN: -34, torso: [-4, 0, 0], armR: [-10, 0, 96], foreR: [-132, 0, 0], armL: [-24, 0, -42], foreL: [-86, 0, 0], thighR: [-16, 0, 10], LEAN: 8, ROOT: [-0.1, -0.04] }),
+  g_jab1_h: P({ TURN: 34, torso: [8, 0, 0], chest: [6, 0, 0], armR: [-84, 0, 10], foreR: [-2, 0, 0], armL: [-4, 0, -104], foreL: [-56, 0, 0], thighR: [40, 0, 10], shinR: [-32, 0, 0], LEAN: -12, ROOT: [0.24, -0.04], STRETCH: 1.03 }),
+  g_jab2_h: P({ TURN: -30, torso: [8, 0, 0], armL: [-70, 0, -34], foreL: [-40, 0, 0], armR: [-6, 0, 108], foreR: [-52, 0, 0], thighL: [32, 0, -10], shinL: [-26, 0, 0], LEAN: -8, ROOT: [0.2, -0.02] }),
+  g_jab3_h: P({ torso: [30, 0, 0], chest: [10, 0, 0], armR: [-30, 0, 26], foreR: [-14, 0, 0], armL: [-30, 0, -26], foreL: [-14, 0, 0], thighL: [46, 0, -14], shinL: [-46, 0, 0], thighR: [40, 0, 14], shinR: [-42, 0, 0], LEAN: -6, ROOT: [0.12, -0.34], SQUASH: 1.14 }),
+  g_ftilt_h: P({ TURN: 34, torso: [4, 0, 0], armR: [-66, 0, -30], foreR: [-6, 0, 0], armL: [-16, 0, -116], foreL: [-30, 0, 0], thighR: [26, 0, 14], shinR: [-20, 0, 0], thighL: [-18, 0, -10], LEAN: -10, ROOT: [0.26, 0.02] }),
+  g_fsmash_w: P({ TURN: -34, torso: [-22, 0, 0], chest: [-10, 0, 0], head: [-14, 0, 0], armR: [-186, 0, 26], foreR: [-40, 0, 0], armL: [-176, 0, -30], foreL: [-46, 0, 0], thighL: [-16, 0, -10], thighR: [-12, 0, 10], LEAN: 12, ROOT: [-0.16, 0.16], STRETCH: 1.1 }),
+  g_fsmash_h: P({ TURN: 16, torso: [46, 0, 0], chest: [14, 0, 0], armR: [-18, 0, 16], foreR: [-4, 0, 0], armL: [-18, 0, -16], foreL: [-4, 0, 0], thighL: [70, 0, -18], shinL: [-58, 0, 0], thighR: [62, 0, 18], shinR: [-52, 0, 0], LEAN: -18, ROOT: [0.3, -0.42], SQUASH: 1.18 }),
+  g_usmash_h: P({ torso: [-20, 0, 0], chest: [-8, 0, 0], head: [-24, 0, 0], armR: [-172, 0, 26], foreR: [-14, 0, 0], armL: [-172, 0, -26], foreL: [-14, 0, 0], thighL: [-20, 0, -12], thighR: [-16, 0, 12], ROOT: [0, 0.24], STRETCH: 1.14 }),
+  g_dsmash_h: P({ torso: [40, 0, 0], chest: [12, 0, 0], armR: [4, 0, 44], foreR: [-16, 0, 0], armL: [4, 0, -44], foreL: [-16, 0, 0], thighL: [96, 0, -30], shinL: [-52, 0, 0], thighR: [94, 0, 30], shinR: [-50, 0, 0], ROOT: [0, -0.62], SQUASH: 1.24 }),
+  g_fair_h: P({ TURN: 12, torso: [30, 0, 0], armR: [-16, 0, 20], foreR: [-6, 0, 0], armL: [-16, 0, -20], foreL: [-6, 0, 0], thighL: [50, 0, -14], shinL: [-40, 0, 0], thighR: [30, 0, 14], shinR: [-30, 0, 0], LEAN: -20, ROOT: [0.2, -0.04], STRETCH: 1.06 }),
+  g_bair_h: P({ TURN: -52, torso: [-10, 0, 0], armL: [-56, 0, -108], foreL: [-104, 0, 0], armR: [-40, 0, 52], foreR: [-70, 0, 0], thighL: [40, 0, -14], shinL: [-42, 0, 0], thighR: [-26, 0, 14], ROOT: [-0.24, 0], STRETCH: 1.05 }),
+  g_heave: P({ torso: [-16, 0, 0], head: [-12, 0, 0], armR: [-158, 0, 40], foreR: [-58, 0, 0], armL: [-158, 0, -40], foreL: [-58, 0, 0], thighL: [34, 0, -16], shinL: [-44, 0, 0], thighR: [30, 0, 16], shinR: [-40, 0, 0], ROOT: [0, -0.14] }),
+  g_hurl: P({ TURN: 26, torso: [26, 0, 0], armR: [-70, 0, 18], foreR: [-4, 0, 0], armL: [-30, 0, -96], foreL: [-40, 0, 0], thighR: [50, 0, 12], shinR: [-40, 0, 0], thighL: [-22, 0, -10], LEAN: -18, ROOT: [0.28, -0.1] }),
+  g_charge: P({ TURN: 10, torso: [34, 0, 0], chest: [10, 0, 0], head: [-26, 0, 0], armR: [10, 0, 46], foreR: [-96, 0, 0], armL: [10, 0, -46], foreL: [-96, 0, 0], thighL: [40, 0, -14], shinL: [-40, 0, 0], thighR: [-20, 0, 14], LEAN: -22, ROOT: [0.12, -0.18], SQUASH: 1.06 }),
+  g_quake: P({ torso: [36, 0, 0], armR: [16, 0, 108], foreR: [-6, 0, 0], armL: [16, 0, -108], foreL: [-6, 0, 0], thighL: [92, 0, -30], shinL: [-46, 0, 0], thighR: [90, 0, 30], shinR: [-44, 0, 0], ROOT: [0, -0.6], SQUASH: 1.22 }),
+
+  /* ホムラ ── 扇の間合い */
+  h_jab1_w: P({ TURN: -30, torso: [2, 0, 0], armR: [-56, 0, 42], foreR: [-118, 0, 0], armL: [-30, 0, -52], foreL: [-84, 0, 0], thighL: [10, 0, -6], LEAN: 6 }),
+  h_jab1_h: P({ TURN: 30, torso: [4, 0, 0], armR: [-80, 0, 18], foreR: [-8, 0, 0], handR: [0, 0, -34], armL: [-24, 0, -104], foreL: [-56, 0, 0], LEAN: -8, ROOT: [0.16, 0] }),
+  h_jab2_h: P({ TURN: -18, torso: [2, 0, 0], armR: [-66, 0, 56], foreR: [-30, 0, 0], handR: [0, 0, 30], armL: [-34, 0, -78], foreL: [-70, 0, 0], LEAN: -4, ROOT: [0.12, 0] }),
+  h_jab3_h: P({ TURN: 22, torso: [8, 0, 0], armR: [-58, 0, 46], foreR: [-4, 0, 0], handR: [0, 0, -50], armL: [-34, 0, -118], foreL: [-24, 0, 0], thighR: [34, 0, 10], shinR: [-26, 0, 0], LEAN: -10, ROOT: [0.2, 0.02] }),
+  h_ftilt_h: P({ TURN: 26, torso: [4, 0, 0], armR: [-74, 0, 26], foreR: [-2, 0, 0], handR: [0, 0, -40], armL: [-10, 0, -126], foreL: [-16, 0, 0], thighR: [30, 0, 10], shinR: [-22, 0, 0], thighL: [-24, 0, -8], LEAN: -10, ROOT: [0.24, 0] }),
+  h_fsmash_w: P({ TURN: -52, torso: [-10, 0, 0], chest: [-6, 0, 0], head: [8, 0, 0], armR: [-150, 0, 66], foreR: [-52, 0, 0], armL: [-20, 0, -112], foreL: [-40, 0, 0], thighR: [-24, 0, 8], thighL: [34, 0, -10], shinL: [-36, 0, 0], LEAN: 14, ROOT: [-0.16, -0.04] }),
+  h_fsmash_h: P({ TURN: 34, torso: [12, 0, 0], chest: [8, 0, 0], armR: [-72, 0, 4], foreR: [0, 0, 0], handR: [0, 0, -46], armL: [-6, 0, -140], foreL: [-14, 0, 0], thighR: [56, 0, 8], shinR: [-46, 0, 0], thighL: [-30, 0, -8], LEAN: -18, ROOT: [0.38, -0.06] }),
+  h_usmash_h: P({ torso: [-12, 0, 0], head: [-18, 0, 0], armR: [-176, 0, 26], foreR: [-6, 0, 0], handR: [0, 0, -30], armL: [-150, 0, -52], foreL: [-30, 0, 0], thighL: [-16, 0, -6], thighR: [24, 0, 10], shinR: [-30, 0, 0], ROOT: [0, 0.2], STRETCH: 1.12 }),
+  h_dsmash_h: P({ TURN: 12, torso: [24, 0, 0], armR: [12, 0, 96], foreR: [-4, 0, 0], handR: [0, 0, -40], armL: [12, 0, -96], foreL: [-4, 0, 0], thighL: [82, 0, -34], shinL: [-24, 0, 0], thighR: [80, 0, 34], shinR: [-22, 0, 0], ROOT: [0, -0.5], SQUASH: 1.14 }),
+  h_fair_h: P({ TURN: 14, torso: [22, 0, 0], armR: [-34, 0, 14], foreR: [-4, 0, 0], handR: [0, 0, -36], armL: [-92, 0, -66], foreL: [-30, 0, 0], thighL: [48, 0, -10], shinL: [-44, 0, 0], thighR: [-30, 0, 8], LEAN: -16, ROOT: [0.16, -0.02] }),
+  h_bair_h: P({ TURN: -50, torso: [-16, 0, 0], armL: [-14, 0, -146], foreL: [-8, 0, 0], armR: [-100, 0, 34], foreR: [-40, 0, 0], thighL: [54, 0, -12], shinL: [-46, 0, 0], thighR: [-36, 0, 10], ROOT: [-0.18, 0.02] }),
+  h_cast_w: P({ TURN: -26, torso: [-4, 0, 0], head: [-6, 0, 0], armR: [-104, 0, 26], foreR: [-104, 0, 0], armL: [-26, 0, -60], foreL: [-92, 0, 0], LEAN: 6, ROOT: [-0.06, 0] }),
+  h_cast_h: P({ TURN: 30, torso: [10, 0, 0], armR: [-84, 0, 10], foreR: [-2, 0, 0], handR: [0, 0, -44], armL: [-40, 0, -108], foreL: [-34, 0, 0], thighR: [30, 0, 8], shinR: [-24, 0, 0], LEAN: -14, ROOT: [0.26, 0] }),
+  h_chargeUp: P({ torso: [-8, 0, 0], head: [-10, 0, 0], armR: [-40, 0, 30], foreR: [-124, 0, 0], armL: [-40, 0, -30], foreL: [-124, 0, 0], thighL: [30, 0, -14], shinL: [-40, 0, 0], thighR: [26, 0, 14], shinR: [-36, 0, 0], ROOT: [0, -0.14] }),
+  h_dive: P({ TURN: 20, torso: [30, 0, 0], head: [-20, 0, 0], armR: [-52, 0, 22], foreR: [-14, 0, 0], handR: [0, 0, -40], armL: [-40, 0, -96], foreL: [-46, 0, 0], thighL: [-30, 0, -8], thighR: [24, 0, 10], shinR: [-34, 0, 0], LEAN: -24, ROOT: [0.16, 0.02], STRETCH: 1.08 }),
+  h_blaze: P({ TURN: 26, torso: [22, 0, 0], armR: [-84, 0, 6], foreR: [-2, 0, 0], handR: [0, 0, -48], armL: [-16, 0, -128], foreL: [-20, 0, 0], thighL: [30, 0, -8], shinL: [-40, 0, 0], thighR: [-38, 0, 10], LEAN: -26, ROOT: [0.34, 0], STRETCH: 1.1 }),
+  h_counter: P({ TURN: 40, torso: [-2, 0, 0], armR: [-118, 0, 10], foreR: [-84, 0, 0], handR: [0, 0, -24], armL: [-46, 0, -98], foreL: [-56, 0, 0], thighL: [26, 0, -12], shinL: [-34, 0, 0], thighR: [20, 0, 12], shinR: [-28, 0, 0], LEAN: 8 }),
+
+  /* ライ ── 抜刀と納刀 */
+  r_jab1_w: P({ TURN: -40, torso: [-2, 0, 0], armR: [-24, 0, 74], foreR: [-124, 0, 0], armL: [-16, 0, -40], foreL: [-118, 0, 0], thighL: [16, 0, -6], shinL: [-20, 0, 0], LEAN: 8, ROOT: [-0.06, -0.06] }),
+  r_jab1_h: P({ TURN: 34, torso: [6, 0, 0], armR: [-88, 0, 2], foreR: [0, 0, 0], armL: [-20, 0, -70], foreL: [-116, 0, 0], thighR: [36, 0, 8], shinR: [-28, 0, 0], LEAN: -10, ROOT: [0.26, 0], STRETCH: 1.03 }),
+  r_jab2_h: P({ TURN: 20, torso: [-4, 0, 0], armR: [-108, 0, 10], foreR: [-4, 0, 0], armL: [-26, 0, -84], foreL: [-104, 0, 0], thighR: [28, 0, 8], shinR: [-22, 0, 0], LEAN: -6, ROOT: [0.22, 0.06] }),
+  r_jab3_h: P({ TURN: 20, torso: [-10, 0, 0], head: [-10, 0, 0], armR: [-142, 0, -14], foreR: [-8, 0, 0], armL: [-30, 0, -90], foreL: [-70, 0, 0], thighR: [26, 0, 8], shinR: [-22, 0, 0], LEAN: -6, ROOT: [0.18, 0.08] }),
+  r_ftilt_h: P({ TURN: 30, torso: [6, 0, 0], armR: [-82, 0, 8], foreR: [-6, 0, 0], armL: [-78, 0, -24], foreL: [-24, 0, 0], thighR: [34, 0, 8], shinR: [-26, 0, 0], thighL: [-20, 0, -8], LEAN: -12, ROOT: [0.28, 0] }),
+  r_fsmash_w: P({ TURN: -58, torso: [-4, 0, 0], chest: [-4, 0, 0], head: [16, 0, 0], armR: [-14, 0, 60], foreR: [-132, 0, 0], armL: [-8, 0, -34], foreL: [-126, 0, 0], thighL: [52, 0, -10], shinL: [-58, 0, 0], thighR: [-14, 0, 8], LEAN: 14, ROOT: [-0.2, -0.2] }),
+  r_fsmash_h: P({ TURN: 38, torso: [10, 0, 0], chest: [8, 0, 0], armR: [-88, 0, -16], foreR: [0, 0, 0], armL: [-16, 0, -134], foreL: [-18, 0, 0], thighR: [58, 0, 8], shinR: [-48, 0, 0], thighL: [-32, 0, -8], LEAN: -20, ROOT: [0.46, -0.08], STRETCH: 1.06 }),
+  r_usmash_h: P({ torso: [-16, 0, 0], head: [-20, 0, 0], armR: [-184, 0, 6], foreR: [-2, 0, 0], armL: [-166, 0, -18], foreL: [-16, 0, 0], thighL: [-16, 0, -6], thighR: [20, 0, 8], shinR: [-26, 0, 0], ROOT: [0, 0.24], STRETCH: 1.16 }),
+  r_dsmash_h: P({ TURN: -14, torso: [30, 0, 0], armR: [18, 0, 66], foreR: [-10, 0, 0], armL: [16, 0, -104], foreL: [-14, 0, 0], thighL: [92, 0, -26], shinL: [-34, 0, 0], thighR: [56, 0, 30], shinR: [-30, 0, 0], ROOT: [0, -0.54], SQUASH: 1.18 }),
+  r_fair_h: P({ TURN: 18, torso: [26, 0, 0], armR: [-30, 0, 8], foreR: [-4, 0, 0], armL: [-70, 0, -58], foreL: [-40, 0, 0], thighL: [46, 0, -10], shinL: [-42, 0, 0], thighR: [-28, 0, 8], LEAN: -18, ROOT: [0.2, -0.04] }),
+  r_bair_h: P({ TURN: -56, torso: [-14, 0, 0], armR: [-92, 0, -56], foreR: [-4, 0, 0], armL: [-40, 0, -116], foreL: [-56, 0, 0], thighL: [50, 0, -10], shinL: [-44, 0, 0], thighR: [-32, 0, 10], ROOT: [-0.2, 0.02], STRETCH: 1.05 }),
+  r_cast_w: P({ TURN: -36, torso: [-8, 0, 0], head: [6, 0, 0], armR: [-136, 0, 44], foreR: [-64, 0, 0], armL: [-26, 0, -56], foreL: [-104, 0, 0], LEAN: 10, ROOT: [-0.1, 0] }),
+  r_cast_h: P({ TURN: 32, torso: [10, 0, 0], armR: [-96, 0, -6], foreR: [0, 0, 0], armL: [-22, 0, -118], foreL: [-40, 0, 0], thighR: [34, 0, 8], shinR: [-26, 0, 0], LEAN: -14, ROOT: [0.3, 0] }),
+  r_iaiCharge: P({ TURN: -30, torso: [-6, 0, 0], head: [-8, 0, 0], armR: [-16, 0, 54], foreR: [-134, 0, 0], armL: [-12, 0, -40], foreL: [-130, 0, 0], thighL: [36, 0, -12], shinL: [-46, 0, 0], thighR: [30, 0, 12], shinR: [-40, 0, 0], ROOT: [0, -0.18] }),
+
+  /* ── カイト: light, spinning, wind-borne ───────────────────────────── */
+  k_ftilt_w: P({ TURN: -38, torso: [-6, 0, 0], armR: [-20, 0, 104], foreR: [-118, 0, 0], armL: [-24, 0, -30], foreL: [-52, 0, 0], thighR: [-24, 0, 6], thighL: [16, 0, -6], ROOT: [-0.1, -0.04] }),
+  k_utilt_w: P({ torso: [16, 0, 0], TURN: -18, armR: [-24, 0, 52], foreR: [-108, 0, 0], armL: [-18, 0, -46], foreL: [-100, 0, 0], thighL: [40, 0, -8], shinL: [-54, 0, 0], thighR: [34, 0, 8], shinR: [-48, 0, 0], ROOT: [0, -0.26] }),
+  k_utilt_h: P({ torso: [-16, 0, 0], chest: [-8, 0, 0], head: [-20, 0, 0], armR: [-172, 0, 16], foreR: [-4, 0, 0], armL: [-166, 0, -18], foreL: [-6, 0, 0], thighL: [-30, 0, -6], shinL: [-10, 0, 0], thighR: [52, 0, 8], shinR: [-70, 0, 0], ROOT: [0, 0.18], STRETCH: 1.12 }),
+  k_dtilt_w: P({ torso: [26, 0, 0], TURN: -14, armR: [30, 0, 44], foreR: [-70, 0, 0], armL: [-30, 0, -50], foreL: [-96, 0, 0], thighL: [78, 0, -10], shinL: [-96, 0, 0], thighR: [64, 0, 10], shinR: [-90, 0, 0], ROOT: [0, -0.46] }),
+  k_dtilt_h: P({ torso: [34, 0, 0], TURN: 26, LEAN: -10, armR: [70, 0, 26], foreR: [-20, 0, 0], armL: [-6, 0, -122], foreL: [-30, 0, 0], thighL: [86, 0, -14], shinL: [-104, 0, 0], thighR: [96, 0, 20], shinR: [-6, 0, 0], footR: [-16, 0, 0], ROOT: [0.2, -0.52], SQUASH: 1.1 }),
+  k_usmash_w: P({ torso: [22, 0, 0], TURN: -22, armR: [-2, 0, 34], foreR: [-132, 0, 0], armL: [-2, 0, -34], foreL: [-132, 0, 0], thighL: [62, 0, -8], shinL: [-80, 0, 0], thighR: [56, 0, 8], shinR: [-76, 0, 0], ROOT: [0, -0.44], SQUASH: 1.08 }),
+  k_dsmash_w: P({ torso: [28, 0, 0], TURN: -34, armR: [-30, 0, 84], foreR: [-104, 0, 0], armL: [-30, 0, -84], foreL: [-104, 0, 0], thighL: [70, 0, -10], shinL: [-88, 0, 0], thighR: [62, 0, 10], shinR: [-84, 0, 0], ROOT: [-0.06, -0.48] }),
+  k_nair_w: P({ torso: [18, 0, 0], armR: [-56, 0, 40], foreR: [-104, 0, 0], armL: [-56, 0, -40], foreL: [-104, 0, 0], thighL: [72, 0, -16], shinL: [-92, 0, 0], thighR: [66, 0, 16], shinR: [-88, 0, 0], SQUASH: 1.14 }),
+  k_nair_h: P({ TURN: 46, torso: [0, 0, 0], armR: [-92, 0, 62], foreR: [-4, 0, 0], armL: [-92, 0, -62], foreL: [-4, 0, 0], thighL: [10, 0, -42], shinL: [-8, 0, 0], thighR: [6, 0, 42], shinR: [-6, 0, 0], STRETCH: 1.08 }),
+  k_uair_w: P({ torso: [24, 0, 0], armR: [-30, 0, 48], foreR: [-96, 0, 0], armL: [-30, 0, -48], foreL: [-96, 0, 0], thighL: [84, 0, -12], shinL: [-108, 0, 0], thighR: [78, 0, 12], shinR: [-104, 0, 0], SQUASH: 1.12 }),
+  k_uair_h: P({ torso: [-32, 0, 0], chest: [-12, 0, 0], head: [-24, 0, 0], armR: [-56, 0, 66], foreR: [-40, 0, 0], armL: [-56, 0, -66], foreL: [-40, 0, 0], thighL: [-64, 0, -8], shinL: [-16, 0, 0], thighR: [-86, 0, 8], shinR: [-8, 0, 0], ROOT: [0, 0.1], STRETCH: 1.1 }),
+  k_dair_w: P({ torso: [16, 0, 0], armR: [-140, 0, 30], foreR: [-30, 0, 0], armL: [-140, 0, -30], foreL: [-30, 0, 0], thighL: [92, 0, -14], shinL: [-116, 0, 0], thighR: [86, 0, 14], shinR: [-112, 0, 0], SQUASH: 1.16 }),
+  k_dair_h: P({ torso: [-6, 0, 0], armR: [-158, 0, 22], foreR: [-10, 0, 0], armL: [-158, 0, -22], foreL: [-10, 0, 0], thighL: [-6, 0, -6], shinL: [-4, 0, 0], thighR: [-2, 0, 6], shinR: [-4, 0, 0], footL: [26, 0, 0], footR: [26, 0, 0], STRETCH: 1.18 }),
+  k_fair_w: P({ TURN: -34, armR: [-150, 0, 34], foreR: [-46, 0, 0], armL: [-40, 0, -58], foreL: [-70, 0, 0], torso: [-14, 0, 0], thighL: [46, 0, -8], shinL: [-58, 0, 0], thighR: [8, 0, 8] }),
+  k_bair_w: P({ TURN: 44, torso: [14, 0, 0], armL: [-50, 0, -88], foreL: [-78, 0, 0], armR: [-30, 0, 40], thighL: [52, 0, -10], shinL: [-64, 0, 0], thighR: [10, 0, 10] }),
+  k_grabHold: P({ TURN: 14, torso: [8, 0, 0], armR: [-96, 0, 18], foreR: [-8, 0, 0], armL: [-40, 0, -58], foreL: [-72, 0, 0], thighL: [22, 0, -8], shinL: [-30, 0, 0], thighR: [10, 0, 8], shinR: [-18, 0, 0], ROOT: [0.06, 0] }),
+  k_taunt: P({ TURN: -24, torso: [-6, 0, 0], head: [-12, 0, 0], armR: [-150, 0, 40], foreR: [-96, 0, 0], armL: [-14, 0, -96], foreL: [-24, 0, 0], thighL: [-8, 0, -6], thighR: [72, 0, 10], shinR: [-96, 0, 0], footR: [20, 0, 0], ROOT: [0, 0.04] }),
+  k_gale: P({ TURN: -26, torso: [-10, 0, 0], armR: [-142, 0, 40], foreR: [-30, 0, 0], armL: [-96, 0, -34], foreL: [-70, 0, 0], thighL: [-18, 0, -8], thighR: [40, 0, 10], shinR: [-52, 0, 0], ROOT: [-0.08, 0.02], STRETCH: 1.06 }),
+  k_riseSpin: P({ TURN: 40, torso: [-12, 0, 0], armR: [-168, 0, 30], foreR: [-8, 0, 0], armL: [-168, 0, -30], foreL: [-8, 0, 0], thighL: [-26, 0, -14], shinL: [-14, 0, 0], thighR: [-18, 0, 14], shinR: [-10, 0, 0], STRETCH: 1.2 }),
+  k_glide: P({ torso: [-4, 0, 0], armR: [-86, 0, 82], foreR: [-16, 0, 0], armL: [-86, 0, -82], foreL: [-16, 0, 0], thighL: [22, 0, -12], shinL: [-30, 0, 0], thighR: [-14, 0, 12], shinR: [-18, 0, 0], STRETCH: 1.04 }),
+
+  /* ── ガンロウ: slow, heavy, everything is a slam ────────────────────── */
+  g_ftilt_w: P({ TURN: -44, torso: [-10, 0, 0], chest: [-6, 0, 0], armR: [-6, 0, 118], foreR: [-96, 0, 0], armL: [-34, 0, -26], foreL: [-30, 0, 0], thighR: [-30, 0, 10], thighL: [22, 0, -10], LEAN: 12, ROOT: [-0.16, -0.08] }),
+  g_utilt_w: P({ torso: [28, 0, 0], armR: [40, 0, 30], foreR: [-96, 0, 0], armL: [40, 0, -30], foreL: [-96, 0, 0], thighL: [56, 0, -16], shinL: [-72, 0, 0], thighR: [50, 0, 16], shinR: [-68, 0, 0], ROOT: [0, -0.36], SQUASH: 1.12 }),
+  g_utilt_h: P({ torso: [-20, 0, 0], chest: [-10, 0, 0], head: [-26, 0, 0], armR: [-176, 0, 22], foreR: [-2, 0, 0], armL: [-176, 0, -22], foreL: [-2, 0, 0], thighL: [-20, 0, -12], thighR: [-16, 0, 12], ROOT: [0, 0.22], STRETCH: 1.14 }),
+  g_dtilt_w: P({ torso: [34, 0, 0], TURN: -20, armR: [-16, 0, 76], foreR: [-84, 0, 0], armL: [10, 0, -48], foreL: [-60, 0, 0], thighL: [88, 0, -14], shinL: [-104, 0, 0], thighR: [72, 0, 14], shinR: [-96, 0, 0], ROOT: [0, -0.52] }),
+  g_dtilt_h: P({ torso: [46, 0, 0], TURN: 18, LEAN: -14, armR: [62, 0, 20], foreR: [-6, 0, 0], armL: [30, 0, -70], foreL: [-40, 0, 0], thighL: [96, 0, -16], shinL: [-112, 0, 0], thighR: [82, 0, 16], shinR: [-102, 0, 0], ROOT: [0.22, -0.58], SQUASH: 1.18 }),
+  g_usmash_w: P({ torso: [30, 0, 0], armR: [24, 0, 36], foreR: [-116, 0, 0], armL: [24, 0, -36], foreL: [-116, 0, 0], thighL: [76, 0, -18], shinL: [-96, 0, 0], thighR: [70, 0, 18], shinR: [-92, 0, 0], ROOT: [0, -0.52], SQUASH: 1.16 }),
+  g_dsmash_w: P({ torso: [34, 0, 0], armR: [-4, 0, 92], foreR: [-88, 0, 0], armL: [-4, 0, -92], foreL: [-88, 0, 0], thighL: [82, 0, -26], shinL: [-92, 0, 0], thighR: [78, 0, 26], shinR: [-90, 0, 0], ROOT: [0, -0.56], SQUASH: 1.2 }),
+  g_nair_w: P({ torso: [14, 0, 0], armR: [-46, 0, 74], foreR: [-56, 0, 0], armL: [-46, 0, -74], foreL: [-56, 0, 0], thighL: [58, 0, -20], shinL: [-70, 0, 0], thighR: [52, 0, 20], shinR: [-66, 0, 0], SQUASH: 1.1 }),
+  g_nair_h: P({ torso: [-8, 0, 0], chest: [-6, 0, 0], armR: [-80, 0, 96], foreR: [-6, 0, 0], armL: [-80, 0, -96], foreL: [-6, 0, 0], thighL: [12, 0, -46], shinL: [-6, 0, 0], thighR: [8, 0, 46], shinR: [-6, 0, 0], STRETCH: 1.06 }),
+  g_uair_w: P({ TURN: -18, torso: [22, 0, 0], armR: [30, 0, 44], foreR: [-92, 0, 0], armL: [26, 0, -40], foreL: [-88, 0, 0], thighL: [70, 0, -14], shinL: [-88, 0, 0], thighR: [64, 0, 14], shinR: [-84, 0, 0], SQUASH: 1.14 }),
+  g_uair_h: P({ TURN: 12, torso: [-24, 0, 0], head: [-22, 0, 0], armR: [-178, 0, 14], foreR: [-2, 0, 0], armL: [-178, 0, -14], foreL: [-2, 0, 0], thighL: [-34, 0, -10], shinL: [-14, 0, 0], thighR: [-28, 0, 10], shinR: [-12, 0, 0], STRETCH: 1.14 }),
+  g_dair_w: P({ torso: [-14, 0, 0], armR: [-172, 0, 26], foreR: [-40, 0, 0], armL: [-172, 0, -26], foreL: [-40, 0, 0], thighL: [80, 0, -16], shinL: [-96, 0, 0], thighR: [74, 0, 16], shinR: [-92, 0, 0], ROOT: [0, 0.08], STRETCH: 1.1 }),
+  g_dair_h: P({ torso: [22, 0, 0], armR: [26, 0, 12], foreR: [-4, 0, 0], armL: [26, 0, -12], foreL: [-4, 0, 0], thighL: [10, 0, -8], shinL: [-6, 0, 0], thighR: [6, 0, 8], shinR: [-6, 0, 0], footL: [30, 0, 0], footR: [30, 0, 0], ROOT: [0, -0.12], STRETCH: 1.16 }),
+  g_fair_w: P({ TURN: -46, armR: [-128, 0, 54], foreR: [-64, 0, 0], armL: [-30, 0, -44], foreL: [-40, 0, 0], torso: [-18, 0, 0], thighL: [40, 0, -12], shinL: [-50, 0, 0], thighR: [14, 0, 12] }),
+  g_bair_w: P({ TURN: 50, torso: [18, 0, 0], armL: [-42, 0, -100], foreL: [-64, 0, 0], armR: [-20, 0, 46], thighL: [44, 0, -14], shinL: [-56, 0, 0], thighR: [14, 0, 14] }),
+  g_grabHold: P({ TURN: 10, torso: [12, 0, 0], armR: [-92, 0, 20], foreR: [-16, 0, 0], armL: [-24, 0, -44], foreL: [-56, 0, 0], thighL: [26, 0, -14], shinL: [-34, 0, 0], thighR: [18, 0, 14], shinR: [-26, 0, 0], ROOT: [0.04, -0.06] }),
+  g_taunt: P({ torso: [10, 0, 0], chest: [8, 0, 0], head: [-14, 0, 0], armR: [-58, 0, 30], foreR: [-118, 0, 0], armL: [-58, 0, -30], foreL: [-118, 0, 0], thighL: [30, 0, -18], shinL: [-38, 0, 0], thighR: [26, 0, 18], shinR: [-34, 0, 0], ROOT: [0, -0.1], SQUASH: 1.06 }),
+  g_pillar_w: P({ torso: [30, 0, 0], armR: [16, 0, 34], foreR: [-124, 0, 0], armL: [16, 0, -34], foreL: [-124, 0, 0], thighL: [80, 0, -20], shinL: [-100, 0, 0], thighR: [74, 0, 20], shinR: [-96, 0, 0], ROOT: [0, -0.54], SQUASH: 1.2 }),
+  g_pillar_h: P({ torso: [-26, 0, 0], chest: [-14, 0, 0], head: [-28, 0, 0], armR: [-180, 0, 8], foreR: [0, 0, 0], armL: [-180, 0, -8], foreL: [0, 0, 0], thighL: [-24, 0, -10], thighR: [-20, 0, 10], ROOT: [0, 0.26], STRETCH: 1.2 }),
+  g_bullrush: P({ torso: [34, 0, 0], chest: [10, 0, 0], head: [-16, 0, 0], LEAN: -26, armR: [-46, 0, 58], foreR: [-96, 0, 0], armL: [-46, 0, -58], foreL: [-96, 0, 0], thighL: [-40, 0, -12], thighR: [66, 0, 12], shinR: [-78, 0, 0], ROOT: [0.16, -0.12] }),
+
+  /* ── ホムラ: fan work, long arcs, dancer's balance ──────────────────── */
+  h_ftilt_w: P({ TURN: -36, torso: [-8, 0, 0], armR: [-64, 0, 74], foreR: [-104, 0, 0], armL: [-30, 0, -40], foreL: [-60, 0, 0], thighR: [-20, 0, 8], thighL: [20, 0, -8], ROOT: [-0.08, -0.02] }),
+  h_utilt_w: P({ TURN: -24, torso: [14, 0, 0], armR: [-40, 0, 46], foreR: [-114, 0, 0], armL: [-20, 0, -52], foreL: [-86, 0, 0], thighL: [42, 0, -10], shinL: [-54, 0, 0], thighR: [30, 0, 10], shinR: [-44, 0, 0], ROOT: [0, -0.24] }),
+  h_utilt_h: P({ TURN: 22, torso: [-18, 0, 0], chest: [-10, 0, 0], head: [-16, 0, 0], armR: [-170, 0, 34], foreR: [-14, 0, 0], armL: [-44, 0, -96], foreL: [-30, 0, 0], thighL: [-26, 0, -8], thighR: [46, 0, 10], shinR: [-62, 0, 0], ROOT: [0, 0.14], STRETCH: 1.1 }),
+  h_dtilt_w: P({ torso: [24, 0, 0], TURN: -22, armR: [-4, 0, 62], foreR: [-92, 0, 0], armL: [-26, 0, -46], foreL: [-88, 0, 0], thighL: [80, 0, -10], shinL: [-98, 0, 0], thighR: [62, 0, 12], shinR: [-88, 0, 0], ROOT: [0, -0.48] }),
+  h_dtilt_h: P({ torso: [30, 0, 0], TURN: 30, LEAN: -8, armR: [58, 0, 34], foreR: [-14, 0, 0], armL: [-16, 0, -110], foreL: [-36, 0, 0], thighL: [92, 0, -12], shinL: [-108, 0, 0], thighR: [66, 0, 22], shinR: [-30, 0, 0], footR: [-10, 0, 0], ROOT: [0.18, -0.5] }),
+  h_usmash_w: P({ TURN: -28, torso: [20, 0, 0], armR: [-18, 0, 44], foreR: [-126, 0, 0], armL: [-8, 0, -38], foreL: [-118, 0, 0], thighL: [58, 0, -10], shinL: [-76, 0, 0], thighR: [50, 0, 10], shinR: [-70, 0, 0], ROOT: [0, -0.42] }),
+  h_dsmash_w: P({ TURN: -40, torso: [26, 0, 0], armR: [-20, 0, 88], foreR: [-98, 0, 0], armL: [-20, 0, -88], foreL: [-98, 0, 0], thighL: [68, 0, -12], shinL: [-86, 0, 0], thighR: [60, 0, 12], shinR: [-82, 0, 0], ROOT: [-0.04, -0.48] }),
+  h_nair_w: P({ TURN: -30, torso: [12, 0, 0], armR: [-64, 0, 44], foreR: [-96, 0, 0], armL: [-44, 0, -52], foreL: [-92, 0, 0], thighL: [64, 0, -14], shinL: [-80, 0, 0], thighR: [56, 0, 14], shinR: [-74, 0, 0] }),
+  h_nair_h: P({ TURN: 56, torso: [-4, 0, 0], armR: [-84, 0, 78], foreR: [-8, 0, 0], armL: [-70, 0, -66], foreL: [-20, 0, 0], thighL: [16, 0, -34], shinL: [-14, 0, 0], thighR: [-12, 0, 34], shinR: [-8, 0, 0], STRETCH: 1.06 }),
+  h_uair_w: P({ TURN: -20, torso: [20, 0, 0], armR: [-36, 0, 50], foreR: [-108, 0, 0], armL: [-24, 0, -44], foreL: [-96, 0, 0], thighL: [76, 0, -12], shinL: [-96, 0, 0], thighR: [68, 0, 12], shinR: [-90, 0, 0] }),
+  h_uair_h: P({ TURN: 26, torso: [-26, 0, 0], chest: [-12, 0, 0], head: [-20, 0, 0], armR: [-168, 0, 42], foreR: [-16, 0, 0], armL: [-96, 0, -70], foreL: [-24, 0, 0], thighL: [-48, 0, -10], shinL: [-14, 0, 0], thighR: [-70, 0, 10], shinR: [-8, 0, 0], ROOT: [0, 0.1], STRETCH: 1.1 }),
+  h_dair_w: P({ TURN: -16, torso: [10, 0, 0], armR: [-150, 0, 28], foreR: [-44, 0, 0], armL: [-64, 0, -60], foreL: [-56, 0, 0], thighL: [86, 0, -12], shinL: [-108, 0, 0], thighR: [78, 0, 12], shinR: [-102, 0, 0] }),
+  h_dair_h: P({ torso: [4, 0, 0], armR: [-166, 0, 16], foreR: [-6, 0, 0], armL: [-56, 0, -78], foreL: [-42, 0, 0], thighL: [-4, 0, -6], shinL: [-6, 0, 0], thighR: [-8, 0, 6], shinR: [-4, 0, 0], footL: [22, 0, 0], footR: [22, 0, 0], STRETCH: 1.14 }),
+  h_fair_w: P({ TURN: -30, armR: [-146, 0, 40], foreR: [-52, 0, 0], armL: [-56, 0, -54], foreL: [-64, 0, 0], torso: [-12, 0, 0], thighL: [44, 0, -8], shinL: [-54, 0, 0], thighR: [10, 0, 8] }),
+  h_bair_w: P({ TURN: 40, torso: [12, 0, 0], armL: [-54, 0, -84], foreL: [-72, 0, 0], armR: [-40, 0, 44], foreR: [-30, 0, 0], thighL: [48, 0, -10], shinL: [-60, 0, 0], thighR: [12, 0, 10] }),
+  h_grabHold: P({ TURN: 18, torso: [6, 0, 0], armR: [-94, 0, 22], foreR: [-10, 0, 0], armL: [-52, 0, -64], foreL: [-80, 0, 0], thighL: [20, 0, -8], shinL: [-28, 0, 0], thighR: [8, 0, 8], shinR: [-16, 0, 0], ROOT: [0.06, 0] }),
+  h_taunt: P({ TURN: -34, torso: [-10, 0, 0], head: [8, 0, 0], armR: [-120, 0, 46], foreR: [-108, 0, 0], armL: [-16, 0, -84], foreL: [-40, 0, 0], thighL: [12, 0, -8], shinL: [-16, 0, 0], thighR: [-6, 0, 10], shinR: [-12, 0, 0], ROOT: [-0.04, 0] }),
+  h_spiral: P({ TURN: 34, torso: [-14, 0, 0], armR: [-164, 0, 36], foreR: [-12, 0, 0], armL: [-140, 0, -50], foreL: [-26, 0, 0], thighL: [-22, 0, -12], shinL: [-16, 0, 0], thighR: [-6, 0, 12], shinR: [-10, 0, 0], STRETCH: 1.18 }),
+  h_emberCast: P({ TURN: -22, torso: [-6, 0, 0], armR: [-108, 0, 52], foreR: [-56, 0, 0], armL: [-30, 0, -66], foreL: [-84, 0, 0], thighL: [26, 0, -10], shinL: [-34, 0, 0], thighR: [-10, 0, 10], shinR: [-16, 0, 0], ROOT: [-0.04, -0.06] }),
+
+  /* ── ライ: iai draws, straight lines, no wasted motion ──────────────── */
+  r_ftilt_w: P({ TURN: -42, torso: [-4, 0, 0], armR: [-14, 0, 62], foreR: [-128, 0, 0], armL: [-10, 0, -46], foreL: [-120, 0, 0], thighL: [30, 0, -12], shinL: [-40, 0, 0], thighR: [-16, 0, 10], ROOT: [-0.12, -0.14] }),
+  r_utilt_w: P({ TURN: -30, torso: [16, 0, 0], armR: [-6, 0, 52], foreR: [-124, 0, 0], armL: [-8, 0, -44], foreL: [-118, 0, 0], thighL: [44, 0, -12], shinL: [-58, 0, 0], thighR: [32, 0, 12], shinR: [-46, 0, 0], ROOT: [0, -0.28] }),
+  r_utilt_h: P({ TURN: 18, torso: [-20, 0, 0], chest: [-8, 0, 0], head: [-14, 0, 0], armR: [-174, 0, 20], foreR: [-8, 0, 0], armL: [-158, 0, -16], foreL: [-12, 0, 0], thighL: [-28, 0, -8], thighR: [40, 0, 10], shinR: [-56, 0, 0], ROOT: [0.04, 0.16], STRETCH: 1.12 }),
+  r_dtilt_w: P({ torso: [28, 0, 0], TURN: -26, armR: [-10, 0, 58], foreR: [-100, 0, 0], armL: [-14, 0, -50], foreL: [-96, 0, 0], thighL: [82, 0, -12], shinL: [-100, 0, 0], thighR: [66, 0, 12], shinR: [-92, 0, 0], ROOT: [0, -0.5] }),
+  r_dtilt_h: P({ torso: [22, 0, 0], TURN: 34, LEAN: -16, armR: [-70, 0, 16], foreR: [-6, 0, 0], armL: [-60, 0, -20], foreL: [-10, 0, 0], thighL: [96, 0, -10], shinL: [-100, 0, 0], thighR: [-30, 0, 10], shinR: [-14, 0, 0], ROOT: [0.34, -0.54] }),
+  r_usmash_w: P({ TURN: -22, torso: [20, 0, 0], armR: [-2, 0, 40], foreR: [-130, 0, 0], armL: [-2, 0, -34], foreL: [-126, 0, 0], thighL: [58, 0, -10], shinL: [-76, 0, 0], thighR: [52, 0, 10], shinR: [-72, 0, 0], ROOT: [0, -0.42] }),
+  r_dsmash_w: P({ TURN: -32, torso: [24, 0, 0], armR: [-38, 0, 76], foreR: [-104, 0, 0], armL: [-34, 0, -72], foreL: [-100, 0, 0], thighL: [72, 0, -12], shinL: [-90, 0, 0], thighR: [64, 0, 12], shinR: [-86, 0, 0], ROOT: [-0.04, -0.5] }),
+  r_nair_w: P({ torso: [10, 0, 0], armR: [-88, 0, 26], foreR: [-70, 0, 0], armL: [-76, 0, -30], foreL: [-64, 0, 0], thighL: [60, 0, -14], shinL: [-76, 0, 0], thighR: [54, 0, 14], shinR: [-72, 0, 0] }),
+  r_nair_h: P({ TURN: 62, torso: [2, 0, 0], armR: [-90, 0, 74], foreR: [-2, 0, 0], armL: [-64, 0, -58], foreL: [-24, 0, 0], thighL: [12, 0, -38], shinL: [-10, 0, 0], thighR: [-6, 0, 38], shinR: [-8, 0, 0], STRETCH: 1.05 }),
+  r_uair_w: P({ TURN: -26, torso: [18, 0, 0], armR: [-24, 0, 44], foreR: [-116, 0, 0], armL: [-20, 0, -40], foreL: [-110, 0, 0], thighL: [74, 0, -12], shinL: [-94, 0, 0], thighR: [66, 0, 12], shinR: [-88, 0, 0] }),
+  r_uair_h: P({ TURN: 20, torso: [-28, 0, 0], head: [-18, 0, 0], armR: [-176, 0, 18], foreR: [-4, 0, 0], armL: [-160, 0, -14], foreL: [-8, 0, 0], thighL: [-52, 0, -8], shinL: [-12, 0, 0], thighR: [-74, 0, 8], shinR: [-8, 0, 0], ROOT: [0, 0.08], STRETCH: 1.12 }),
+  r_dair_w: P({ torso: [-10, 0, 0], armR: [-172, 0, 20], foreR: [-34, 0, 0], armL: [-160, 0, -18], foreL: [-30, 0, 0], thighL: [84, 0, -12], shinL: [-104, 0, 0], thighR: [76, 0, 12], shinR: [-98, 0, 0], ROOT: [0, 0.06] }),
+  r_dair_h: P({ torso: [0, 0, 0], armR: [-6, 0, 10], foreR: [-2, 0, 0], armL: [-6, 0, -10], foreL: [-2, 0, 0], thighL: [-2, 0, -4], shinL: [-2, 0, 0], thighR: [2, 0, 4], shinR: [-2, 0, 0], footL: [18, 0, 0], footR: [18, 0, 0], STRETCH: 1.22 }),
+  r_fair_w: P({ TURN: -38, armR: [-156, 0, 28], foreR: [-56, 0, 0], armL: [-142, 0, -24], foreL: [-50, 0, 0], torso: [-16, 0, 0], thighL: [42, 0, -8], shinL: [-52, 0, 0], thighR: [10, 0, 8] }),
+  r_bair_w: P({ TURN: 48, torso: [10, 0, 0], armL: [-30, 0, -108], foreL: [-56, 0, 0], armR: [-56, 0, 34], foreR: [-40, 0, 0], thighL: [46, 0, -10], shinL: [-58, 0, 0], thighR: [10, 0, 10] }),
+  r_grabHold: P({ TURN: 16, torso: [6, 0, 0], armL: [-98, 0, -14], foreL: [-8, 0, 0], armR: [-30, 0, 52], foreR: [-108, 0, 0], thighL: [20, 0, -8], shinL: [-28, 0, 0], thighR: [10, 0, 8], shinR: [-18, 0, 0], ROOT: [0.06, 0] }),
+  r_taunt: P({ TURN: -28, torso: [-4, 0, 0], head: [10, 0, 0], armR: [-30, 0, 46], foreR: [-126, 0, 0], armL: [-16, 0, -52], foreL: [-118, 0, 0], thighL: [16, 0, -10], shinL: [-22, 0, 0], thighR: [8, 0, 10], shinR: [-16, 0, 0], ROOT: [0, -0.06] }),
+  r_corkscrew: P({ TURN: 70, torso: [-16, 0, 0], armR: [-176, 0, 14], foreR: [-4, 0, 0], armL: [-150, 0, -20], foreL: [-14, 0, 0], thighL: [-30, 0, -10], shinL: [-8, 0, 0], thighR: [-24, 0, 10], shinR: [-8, 0, 0], STRETCH: 1.22 }),
+  r_boltCast: P({ TURN: -18, torso: [-6, 0, 0], armR: [-96, 0, 24], foreR: [-8, 0, 0], armL: [-24, 0, -70], foreL: [-96, 0, 0], thighL: [30, 0, -12], shinL: [-40, 0, 0], thighR: [-14, 0, 10], shinR: [-18, 0, 0], ROOT: [0.08, -0.06] }),
+  r_charge: P({ torso: [-12, 0, 0], chest: [-8, 0, 0], head: [-14, 0, 0], armR: [-140, 0, 44], foreR: [-56, 0, 0], armL: [-140, 0, -44], foreL: [-56, 0, 0], thighL: [34, 0, -14], shinL: [-46, 0, 0], thighR: [28, 0, 14], shinR: [-42, 0, 0], ROOT: [0, -0.14], STRETCH: 1.06 })
+});
+
+/* Which shared keyframe each fighter swaps out. Anything absent falls
+   through to the common library, so a pose only has to be authored when
+   it actually says something about the character. */
+const POSE_MAP = {
+  kaite: {
+    jab1_w: 'k_jab1_w', jab1_h: 'k_jab1_h', jab2_h: 'k_jab2_h', jab3_h: 'k_jab3_h',
+    ftilt_w: 'k_ftilt_w', ftilt_h: 'k_ftilt_h', utilt_w: 'k_utilt_w', utilt_h: 'k_utilt_h',
+    dtilt_w: 'k_dtilt_w', dtilt_h: 'k_dtilt_h',
+    fsmash_w: 'k_fsmash_w', fsmash_h: 'k_fsmash_h', usmash_w: 'k_usmash_w', usmash_h: 'k_usmash_h',
+    dsmash_w: 'k_dsmash_w', dsmash_h: 'k_dsmash_h',
+    nair_w: 'k_nair_w', nair_h: 'k_nair_h', fair_w: 'k_fair_w', fair_h: 'k_fair_h',
+    bair_w: 'k_bair_w', bair_h: 'k_bair_h', uair_w: 'k_uair_w', uair_h: 'k_uair_h',
+    dair_w: 'k_dair_w', dair_h: 'k_dair_h',
+    grabHold: 'k_grabHold', taunt: 'k_taunt',
+    cast_w: 'k_cast_w', cast_h: 'k_cast_h', chargeUp: 'k_chargeUp', counterStance: 'k_windGuard',
+    riseSpin: 'k_riseSpin', fall: 'k_glide'
+  },
+  ganroh: {
+    jab1_w: 'g_jab1_w', jab1_h: 'g_jab1_h', jab2_h: 'g_jab2_h', jab3_h: 'g_jab3_h',
+    ftilt_w: 'g_ftilt_w', ftilt_h: 'g_ftilt_h', utilt_w: 'g_utilt_w', utilt_h: 'g_utilt_h',
+    dtilt_w: 'g_dtilt_w', dtilt_h: 'g_dtilt_h',
+    fsmash_w: 'g_fsmash_w', fsmash_h: 'g_fsmash_h', usmash_w: 'g_usmash_w', usmash_h: 'g_usmash_h',
+    dsmash_w: 'g_dsmash_w', dsmash_h: 'g_dsmash_h',
+    nair_w: 'g_nair_w', nair_h: 'g_nair_h', fair_w: 'g_fair_w', fair_h: 'g_fair_h',
+    bair_w: 'g_bair_w', bair_h: 'g_bair_h', uair_w: 'g_uair_w', uair_h: 'g_uair_h',
+    dair_w: 'g_dair_w', dair_h: 'g_dair_h',
+    grabHold: 'g_grabHold', taunt: 'g_taunt',
+    cast_w: 'g_heave', cast_h: 'g_hurl', chargeUp: 'g_heave', dashStart: 'g_bullrush'
+  },
+  homura: {
+    jab1_w: 'h_jab1_w', jab1_h: 'h_jab1_h', jab2_h: 'h_jab2_h', jab3_h: 'h_jab3_h',
+    ftilt_w: 'h_ftilt_w', ftilt_h: 'h_ftilt_h', utilt_w: 'h_utilt_w', utilt_h: 'h_utilt_h',
+    dtilt_w: 'h_dtilt_w', dtilt_h: 'h_dtilt_h',
+    fsmash_w: 'h_fsmash_w', fsmash_h: 'h_fsmash_h', usmash_w: 'h_usmash_w', usmash_h: 'h_usmash_h',
+    dsmash_w: 'h_dsmash_w', dsmash_h: 'h_dsmash_h',
+    nair_w: 'h_nair_w', nair_h: 'h_nair_h', fair_w: 'h_fair_w', fair_h: 'h_fair_h',
+    bair_w: 'h_bair_w', bair_h: 'h_bair_h', uair_w: 'h_uair_w', uair_h: 'h_uair_h',
+    dair_w: 'h_dair_w', dair_h: 'h_dair_h',
+    grabHold: 'h_grabHold', taunt: 'h_taunt',
+    cast_w: 'h_cast_w', cast_h: 'h_cast_h', chargeUp: 'h_chargeUp', counterStance: 'h_counter',
+    riseSpin: 'h_spiral'
+  },
+  rai: {
+    jab1_w: 'r_jab1_w', jab1_h: 'r_jab1_h', jab2_h: 'r_jab2_h', jab3_h: 'r_jab3_h',
+    ftilt_w: 'r_ftilt_w', ftilt_h: 'r_ftilt_h', utilt_w: 'r_utilt_w', utilt_h: 'r_utilt_h',
+    dtilt_w: 'r_dtilt_w', dtilt_h: 'r_dtilt_h',
+    fsmash_w: 'r_fsmash_w', fsmash_h: 'r_fsmash_h', usmash_w: 'r_usmash_w', usmash_h: 'r_usmash_h',
+    dsmash_w: 'r_dsmash_w', dsmash_h: 'r_dsmash_h',
+    nair_w: 'r_nair_w', nair_h: 'r_nair_h', fair_w: 'r_fair_w', fair_h: 'r_fair_h',
+    bair_w: 'r_bair_w', bair_h: 'r_bair_h', uair_w: 'r_uair_w', uair_h: 'r_uair_h',
+    dair_w: 'r_dair_w', dair_h: 'r_dair_h',
+    grabHold: 'r_grabHold', taunt: 'r_taunt',
+    cast_w: 'r_cast_w', cast_h: 'r_cast_h', chargeUp: 'r_iaiCharge', riseSpin: 'r_corkscrew'
+  }
+};
+
 /* ── secondary-motion chain (hair / scarf / coat) ────────────────────── */
 class Chain {
   constructor(parent, seg, opt) {
@@ -990,30 +1232,30 @@ const BASE_MOVES = {
   jab3: mk(30, [[0, 'jab2_h'], [5, 'jab3_h'], [14, null]], [H(5, 8, .88, .96, .44, 5.2, 45, 62, 62, { sz: 1.15, sfx: 'mid', fx: 'burst' })], { push: [5, .10] }),
 
   ftilt: mk(33, [[0, 'ftilt_w'], [8, 'ftilt_h'], [20, null]], [H(8, 11, 1.02, 1.00, .46, 9.5, 361, 26, 112, { sz: 1.1, sfx: 'mid', fx: 'slash' })], { push: [8, .11] }),
-  utilt: mk(30, [[0, 'utilt_w'], [6, 'utilt_h'], [16, null]], [H(6, 10, .18, 1.86, .56, 7.8, 88, 30, 112, { sfx: 'mid', fx: 'slashUp' })]),
+  utilt: mk(30, [[0, 'utilt_w'], [6, 'utilt_h'], [16, null]], [H(6, 10, .18, 1.86, .56, 7.8, 88, 30, 170, { sfx: 'mid', fx: 'slashUp' })]),
   dtilt: mk(27, [[0, 'dtilt_w'], [6, 'dtilt_h'], [14, null]], [H(6, 9, .92, .30, .40, 6.4, 28, 20, 100, { sfx: 'lite', fx: 'dust' })], { crouch: 1 }),
 
   fsmash: mk(52, [[0, 'fsmash_w'], [15, 'fsmash_h'], [30, null]], [H(15, 19, 1.24, 1.06, .58, 16.5, 361, 26, 104, { sz: 1.6, sfx: 'heavy', fx: 'bigSlash' })], { smash: 1, chargeAt: 8, push: [15, .16] }),
-  usmash: mk(48, [[0, 'usmash_w'], [12, 'usmash_h'], [26, null]], [H(12, 17, .10, 2.12, .66, 15.0, 90, 30, 100, { sz: 1.5, sfx: 'heavy', fx: 'pillar' })], { smash: 1, chargeAt: 7 }),
-  dsmash: mk(46, [[0, 'dsmash_w'], [11, 'dsmash_h'], [24, null]], [H(11, 15, 1.02, .28, .52, 13.0, 22, 34, 92, { sz: 1.3, sfx: 'heavy', fx: 'quake' }), H(11, 15, -1.02, .28, .52, 12.0, 158, 34, 92, { sz: 1.3, id: 1, fx: 'quake' })], { smash: 1, chargeAt: 6 }),
+  usmash: mk(48, [[0, 'usmash_w'], [12, 'usmash_h'], [26, null]], [H(12, 17, .10, 2.12, .66, 15.0, 90, 30, 144, { sz: 1.5, sfx: 'heavy', fx: 'pillar' })], { smash: 1, chargeAt: 7 }),
+  dsmash: mk(46, [[0, 'dsmash_w'], [11, 'dsmash_h'], [24, null]], [H(11, 15, 1.02, .28, .52, 13.0, 22, 34, 85, { sz: 1.3, sfx: 'heavy', fx: 'quake' }), H(11, 15, -1.02, .28, .52, 12.0, 158, 34, 85, { sz: 1.3, id: 1, fx: 'quake' })], { smash: 1, chargeAt: 6 }),
 
   nair: mk(40, [[0, 'nair_w'], [5, 'nair_h'], [22, null]], [H(5, 9, .52, 1.10, .74, 9.5, 361, 14, 96, { sfx: 'mid', fx: 'ringWave' }), H(10, 22, .52, 1.10, .66, 5.5, 361, 12, 72, { id: 1, sz: .8, sfx: 'lite' })], { air: 1, land: 7 }),
   fair: mk(42, [[0, 'fair_w'], [9, 'fair_h'], [22, null]], [H(9, 13, 1.06, 1.24, .52, 12.0, 361, 16, 104, { sz: 1.2, sfx: 'mid', fx: 'slash' })], { air: 1, land: 12 }),
   bair: mk(38, [[0, 'bair_w'], [7, 'bair_h'], [20, null]], [H(7, 11, -1.08, 1.16, .52, 13.0, 361, 20, 104, { sz: 1.2, sfx: 'mid', fx: 'slash', back: 1 })], { air: 1, land: 10 }),
-  uair: mk(36, [[0, 'uair_w'], [6, 'uair_h'], [18, null]], [H(6, 11, .16, 2.02, .60, 10.0, 82, 16, 112, { sfx: 'mid', fx: 'slashUp' })], { air: 1, land: 8 }),
+  uair: mk(36, [[0, 'uair_w'], [6, 'uair_h'], [18, null]], [H(6, 11, .16, 2.02, .60, 10.0, 82, 16, 170, { sfx: 'mid', fx: 'slashUp' })], { air: 1, land: 8 }),
   dair: mk(48, [[0, 'dair_w'], [13, 'dair_h'], [30, null]], [H(13, 19, .10, .06, .56, 14.0, 270, 22, 62, { sz: 1.4, sfx: 'heavy', fx: 'spike', spike: 1 })], { air: 1, land: 20, fastfall: 1 }),
 
   grab: mk(30, [[0, 'cast_w'], [6, 'grabHold'], [16, null]], [], { grab: [6, 9, 1.05] }),
   fthrow: mk(34, [[0, 'grabHold'], [4, 'ftilt_h'], [18, null]], [], { throwAt: 8, thr: { d: 8, a: 45, bkb: 56, kbg: 66 } }),
   bthrow: mk(38, [[0, 'grabHold'], [6, 'bair_h'], [22, null]], [], { throwAt: 10, thr: { d: 10, a: 135, bkb: 62, kbg: 88, back: 1 } }),
-  uthrow: mk(34, [[0, 'grabHold'], [5, 'usmash_h'], [18, null]], [], { throwAt: 8, thr: { d: 8, a: 88, bkb: 58, kbg: 74 } }),
+  uthrow: mk(34, [[0, 'grabHold'], [5, 'usmash_h'], [18, null]], [], { throwAt: 8, thr: { d: 8, a: 88, bkb: 58, kbg: 140 } }),
   dthrow: mk(36, [[0, 'grabHold'], [5, 'dsmash_h'], [20, null]], [], { throwAt: 9, thr: { d: 7, a: 72, bkb: 46, kbg: 48 } }),
 
   ledgeAtk: mk(36, [[0, 'ledgeGetup'], [10, 'ftilt_h'], [22, null]], [H(10, 15, .85, .55, .52, 9, 361, 66, 52, { sfx: 'mid' })]),
   taunt: mk(52, [[0, 'taunt'], [40, null]], [])
 };
 
-function cloneMoves(over) {
+function cloneMoves(over, pmap) {
   const out = {};
   for (const k in BASE_MOVES) {
     const m = BASE_MOVES[k];
@@ -1026,9 +1268,23 @@ function cloneMoves(over) {
       if (p.dmg) t.hits.forEach((h, i) => { h.d *= p.dmg; });
       if (p.kb) t.hits.forEach(h => { h.kbg *= p.kb; });
       if (p.total) t.total = p.total;
+      // `slow` pushes the strike later and drags the wind-up keyframe with it,
+      // so the animation still lands on the active frame. `lag` is pure recovery.
+      if (p.slow && t.hits.length) {
+        const n = p.slow, k0 = t.hits[0].s;
+        t.hits.forEach(h => { h.s += n; h.e += n; });
+        t.keys = t.keys.map(a => [(a[0] >= k0 && a[0] > 0) ? a[0] + n : a[0], a[1]]);
+        if (t.spec && t.spec.at >= k0) t.spec.at += n;
+        if (t.push) t.push = [t.push[0] + n, t.push[1]];
+        t.total += n;
+      }
+      if (p.lag) t.total = Math.max(t.hits.length ? t.hits[t.hits.length - 1].e + 4 : 8, t.total + p.lag);
       if (p.reach) t.hits.forEach(h => { h.x *= p.reach; h.r *= (0.6 + 0.4 * p.reach); });
       if (p.fx) t.hits.forEach(h => h.fx = p.fx);
     } else out[k] = over[k];
+  }
+  if (pmap) for (const k in out) {
+    out[k].keys = out[k].keys.map(a => [a[0], (a[1] && pmap[a[1]]) ? pmap[a[1]] : a[1]]);
   }
   return out;
 }
@@ -1101,15 +1357,18 @@ const ROSTER = [
     id: 'kaite', name: 'カイト', romaji: 'KAITE', arch: '疾風・オールラウンダー', tag: 'SPEED',
     scale: 1.0, outline: .018,
     weight: 91, run: .235, walk: .112, air: .175, airAcc: .0175, grav: .0555, fall: 1.02, ff: 1.62,
-    jump: 1.30, hop: .80, djump: 1.20, jumps: 3, traction: .055, dashF: 12,
+    jump: .96, hop: .59, djump: .89, jumps: 3, traction: .055, dashF: 12,
     build: { wid: .94, tors: 1.0, head: 1.0, arm: .94, leg: .96, limb: 1.02, chest: 1.0 },
     colors: { skin: '#F3C9A6', suit: '#EAF2FB', trim: '#2E4B7A', accent: '#39C6E8', dark: '#1B2740', eye: '#B9F4FF', ink: '#0A0F1E', rock: '#888' },
     fx: '#7BE7FF',
     access: accKaite,
     over: {
-      ftilt: { patch: 1, dmg: .97, kb: .99 }, fsmash: { patch: 1, dmg: .97 },
-      nspecial: mk(40, [[0, 'cast_w'], [10, 'cast_h'], [26, null]], [], { spec: { k: 'proj', at: 12, sp: .40, dmg: 6.5, ang: 361, bkb: 18, kbg: 42, life: 62, grav: 0, r: .30, col: '#7BE7FF', kind: 'gale' } }),
-      sspecial: mk(46, [[0, 'nair_w'], [8, 'riseSpin'], [30, null]], [H(9, 26, .55, 1.05, .62, 2.4, 70, 8, 22, { hl: .5, sz: .7, sfx: 'lite', rehit: 4 }), H(27, 30, .70, 1.05, .60, 6.5, 45, 58, 66, { id: 1, sfx: 'mid' })], { spec: { k: 'dash', at: 8, sp: .30, dur: 20, air: 1 } }),
+      jab1: { patch: 1, lag: -2 }, jab2: { patch: 1, lag: -2 }, jab3: { patch: 1, lag: -3 },
+      ftilt: { patch: 1, dmg: .94, kb: .97, lag: -4 }, utilt: { patch: 1, lag: -3 }, dtilt: { patch: 1, lag: -3 },
+      fsmash: { patch: 1, dmg: .93, kb: .96, lag: -5 }, usmash: { patch: 1, lag: -4 }, dsmash: { patch: 1, lag: -4 },
+      fair: { patch: 1, lag: -4 }, bair: { patch: 1, lag: -3 }, nair: { patch: 1, lag: -3 },
+      nspecial: mk(40, [[0, 'k_cast_w'], [10, 'k_gale'], [26, null]], [], { spec: { k: 'proj', at: 12, sp: .40, dmg: 6.5, ang: 361, bkb: 18, kbg: 42, life: 62, grav: 0, r: .30, col: '#7BE7FF', kind: 'gale' } }),
+      sspecial: mk(46, [[0, 'k_spinDash'], [8, 'riseSpin'], [30, null]], [H(9, 26, .55, 1.05, .62, 2.4, 70, 8, 22, { hl: .5, sz: .7, sfx: 'lite', rehit: 4 }), H(27, 30, .70, 1.05, .60, 6.5, 45, 58, 66, { id: 1, sfx: 'mid' })], { spec: { k: 'dash', at: 8, sp: .30, dur: 20, air: 1 } }),
       uspecial: mk(56, [[0, 'chargeUp'], [8, 'riseSpin'], [40, 'fall']], [H(9, 30, .25, 1.35, .70, 1.6, 90, 6, 18, { hl: .4, sz: .8, sfx: 'lite', rehit: 4, fx: 'wind' })], { spec: { k: 'rise', at: 8, vy: 1.66, vx: .10, dur: 26, helpless: 1 } }),
       dspecial: mk(44, [[0, 'counterStance'], [6, 'cast_h'], [24, null]], [H(8, 16, .70, 1.05, .95, 3.0, 361, 40, 20, { sfx: 'lite', fx: 'wind', push: 1 })], { spec: { k: 'reflect', s: 6, e: 22 } })
     }
@@ -1117,40 +1376,45 @@ const ROSTER = [
   {
     id: 'ganroh', name: 'ガンロウ', romaji: 'GANROH', arch: '巌・パワー', tag: 'POWER',
     scale: 1.17, outline: .022,
-    weight: 122, run: .162, walk: .082, air: .126, airAcc: .0115, grav: .0625, fall: 1.16, ff: 1.80,
-    jump: 1.24, hop: .74, djump: 1.10, jumps: 2, traction: .075, dashF: 15,
+    weight: 114, run: .162, walk: .082, air: .126, airAcc: .0115, grav: .0625, fall: 1.16, ff: 1.80,
+    jump: .92, hop: .55, djump: .90, jumps: 2, traction: .075, dashF: 15,
     build: { wid: 1.26, tors: 1.06, head: .95, arm: 1.28, leg: 1.20, limb: .98, chest: 1.12 },
     colors: { skin: '#C98D62', suit: '#6E5B48', trim: '#C98A3A', accent: '#F0A63C', dark: '#33261C', eye: '#FFD98A', ink: '#120C08', rock: '#8B7F72' },
     fx: '#FFB65C',
     access: accGanroh,
     over: {
-      jab1: { patch: 1, dmg: 1.30, total: 26 }, jab2: { patch: 1, dmg: 1.30, total: 26 },
-      ftilt: { patch: 1, dmg: 1.24, kb: 1.04, reach: 1.12 },
-      fsmash: { patch: 1, dmg: 1.16, kb: 1.00, reach: 1.16 },
-      usmash: { patch: 1, dmg: 1.14, kb: 1.04 }, dsmash: { patch: 1, dmg: 1.14, kb: 1.04 },
-      fair: { patch: 1, dmg: 1.18, kb: 1.04 }, bair: { patch: 1, dmg: 1.14, kb: 1.02 },
-      dair: { patch: 1, dmg: 1.16, kb: 1.02 },
+      jab1: { patch: 1, dmg: 1.10, total: 26, slow: 3 }, jab2: { patch: 1, dmg: 1.10, total: 26, slow: 3 },
+      jab3: { patch: 1, dmg: 1.06, slow: 4, lag: 5 },
+      ftilt: { patch: 1, dmg: 1.08, kb: 0.98, reach: 1.12, slow: 4, lag: 6 },
+      utilt: { patch: 1, dmg: 1.02, slow: 3, lag: 5 }, dtilt: { patch: 1, dmg: 1.00, slow: 3, lag: 5 },
+      fsmash: { patch: 1, dmg: 1.02, kb: 0.94, reach: 1.16, slow: 6, lag: 11 },
+      usmash: { patch: 1, dmg: 1.00, kb: 0.96, slow: 5, lag: 9 }, dsmash: { patch: 1, dmg: 1.00, kb: 0.96, slow: 5, lag: 9 },
+      fair: { patch: 1, dmg: 1.04, kb: 0.98, slow: 4, lag: 8 }, bair: { patch: 1, dmg: 1.02, kb: 0.98, slow: 3, lag: 7 },
+      uair: { patch: 1, slow: 3, lag: 4 }, nair: { patch: 1, slow: 3, lag: 4 },
+      dair: { patch: 1, dmg: 1.04, kb: 0.98, slow: 3, lag: 6 },
       nspecial: mk(52, [[0, 'chargeUp'], [16, 'cast_h'], [34, null]], [], { spec: { k: 'proj', at: 18, sp: .32, dmg: 14, ang: 42, bkb: 48, kbg: 74, life: 100, grav: .019, r: .40, col: '#B79A78', kind: 'rock' } }),
-      sspecial: mk(64, [[0, 'fsmash_w'], [14, 'dashStart'], [46, null]], [H(15, 42, .95, 1.05, .72, 15.5, 40, 58, 74, { sfx: 'heavy', fx: 'quake', once: 1 })], { spec: { k: 'dash', at: 14, sp: .30, dur: 28, armor: 12 } }),
-      uspecial: mk(58, [[0, 'usmash_w'], [10, 'usmash_h'], [40, 'fall']], [H(11, 20, .10, 2.00, .78, 13, 88, 52, 82, { sfx: 'heavy', fx: 'pillar' })], { spec: { k: 'rise', at: 10, vy: 1.32, vx: .05, dur: 20, helpless: 1 } }),
-      dspecial: mk(56, [[0, 'usmash_w'], [16, 'dsmash_h'], [34, null]], [H(17, 22, 1.30, .26, .70, 12, 78, 56, 74, { sfx: 'heavy', fx: 'quake' }), H(17, 22, -1.30, .26, .70, 12, 102, 56, 74, { id: 1, fx: 'quake' })], { spec: { k: 'quake', at: 17 } })
+      sspecial: mk(64, [[0, 'g_charge'], [14, 'dashStart'], [46, null]], [H(15, 42, .95, 1.05, .72, 15.5, 40, 58, 74, { sfx: 'heavy', fx: 'quake', once: 1 })], { spec: { k: 'dash', at: 14, sp: .30, dur: 28, armor: 7 } }),
+      uspecial: mk(58, [[0, 'g_pillar_w'], [10, 'g_pillar_h'], [40, 'fall']], [H(11, 20, .10, 2.00, .78, 13, 88, 52, 82, { sfx: 'heavy', fx: 'pillar' })], { spec: { k: 'rise', at: 10, vy: 1.60, vx: .07, dur: 24, helpless: 1 } }),
+      dspecial: mk(56, [[0, 'g_heave'], [16, 'g_quake'], [34, null]], [H(17, 22, 1.30, .26, .70, 12, 78, 56, 74, { sfx: 'heavy', fx: 'quake' }), H(17, 22, -1.30, .26, .70, 12, 102, 56, 74, { id: 1, fx: 'quake' })], { spec: { k: 'quake', at: 17 } })
     }
   },
   {
     id: 'homura', name: 'ホムラ', romaji: 'HOMURA', arch: '焔・レンジャー', tag: 'ZONE',
     scale: 1.03, outline: .019,
-    weight: 96, run: .200, walk: .100, air: .160, airAcc: .0155, grav: .0575, fall: 1.06, ff: 1.66,
-    jump: 1.27, hop: .78, djump: 1.16, jumps: 2, traction: .058, dashF: 13,
+    weight: 103, run: .216, walk: .100, air: .160, airAcc: .0155, grav: .0575, fall: 1.06, ff: 1.66,
+    jump: .94, hop: .58, djump: .86, jumps: 2, traction: .058, dashF: 13,
     build: { wid: .97, tors: 1.02, head: 1.0, arm: .96, leg: 1.0, limb: 1.03, chest: 1.02 },
     colors: { skin: '#F0C0A0', suit: '#2A1520', trim: '#FFD05A', accent: '#E8443C', dark: '#170A10', eye: '#FFCE6A', ink: '#0E0510', rock: '#888' },
     fx: '#FF8A3C',
     access: accHomura,
     over: {
-      ftilt: { patch: 1, fx: 'fire' }, fsmash: { patch: 1, fx: 'fire', dmg: 1.04 },
+      ftilt: { patch: 1, fx: 'fire', dmg: 1.06, kb: 1.05, reach: 1.14, slow: 2 },
+      fsmash: { patch: 1, fx: 'fire', dmg: 1.10, kb: 1.08, reach: 1.16, slow: 3, lag: 2 },
+      usmash: { patch: 1, dmg: 1.06, kb: 1.07, reach: 1.10, slow: 2 }, dsmash: { patch: 1, dmg: 1.06, kb: 1.06, reach: 1.12, slow: 2 },
       fair: { patch: 1, fx: 'fire' }, bair: { patch: 1, fx: 'fire' },
-      nspecial: mk(44, [[0, 'cast_w'], [9, 'cast_h'], [28, null]],
+      nspecial: mk(44, [[0, 'h_cast_w'], [9, 'h_emberCast'], [28, null]],
         [], { spec: { k: 'proj', at: 10, sp: .34, dmg: 3.6, ang: 361, bkb: 10, kbg: 26, life: 46, grav: .002, r: .24, col: '#FF8A3C', kind: 'ember', burst: 3, gap: 5 } }),
-      sspecial: mk(50, [[0, 'divePrep'], [8, 'nair_h'], [32, null]], [H(10, 24, .40, 1.05, .70, 9.5, 55, 48, 70, { sfx: 'mid', fx: 'fire', once: 1 })], { spec: { k: 'dash', at: 8, sp: .34, dur: 16, air: 1, trail: 'fire' } }),
+      sspecial: mk(50, [[0, 'h_dive'], [8, 'h_blaze'], [32, null]], [H(10, 24, .40, 1.05, .70, 9.5, 55, 48, 70, { sfx: 'mid', fx: 'fire', once: 1 })], { spec: { k: 'dash', at: 8, sp: .34, dur: 16, air: 1, trail: 'fire' } }),
       uspecial: mk(58, [[0, 'chargeUp'], [9, 'riseSpin'], [42, 'fall']], [H(10, 34, .22, 1.30, .68, 2.0, 84, 8, 20, { hl: .45, rehit: 4, sfx: 'lite', fx: 'fire' }), H(35, 39, .22, 1.60, .70, 5.5, 88, 62, 76, { id: 1, sfx: 'mid', fx: 'fire' })], { spec: { k: 'rise', at: 9, vy: 1.52, vx: .09, dur: 30, helpless: 1 } }),
       dspecial: mk(60, [[0, 'counterStance'], [30, null]], [], { spec: { k: 'counter', s: 5, e: 26, mult: 1.45, min: 10, fx: 'fire' } })
     }
@@ -1158,26 +1422,29 @@ const ROSTER = [
   {
     id: 'rai', name: 'ライ', romaji: 'RAI', arch: '迅雷・ラッシュ', tag: 'RUSH',
     scale: 1.02, outline: .019,
-    weight: 92, run: .248, walk: .118, air: .180, airAcc: .0180, grav: .0600, fall: 1.12, ff: 1.74,
-    jump: 1.29, hop: .79, djump: 1.18, jumps: 2, traction: .062, dashF: 11,
+    weight: 95, run: .248, walk: .118, air: .180, airAcc: .0180, grav: .0600, fall: 1.12, ff: 1.74,
+    jump: .95, hop: .58, djump: .87, jumps: 2, traction: .062, dashF: 11,
     build: { wid: .99, tors: 1.0, head: .98, arm: .97, leg: 1.02, limb: 1.05, chest: 1.02 },
     colors: { skin: '#E7BFA4', suit: '#2B2A54', trim: '#8E7BE8', accent: '#7CF0FF', dark: '#141330', eye: '#D2FBFF', ink: '#080716', rock: '#888' },
     fx: '#9FE8FF',
     access: accRai,
     over: {
-      jab1: { patch: 1, total: 16 }, jab2: { patch: 1, total: 16 },
-      ftilt: { patch: 1, total: 29, dmg: .94, reach: 1.10 },
+      jab1: { patch: 1, total: 16, slow: -1 }, jab2: { patch: 1, total: 16, slow: -1 },
+      jab3: { patch: 1, dmg: .94, slow: -1, lag: -3 },
+      ftilt: { patch: 1, total: 29, dmg: .94, reach: 1.10, slow: -1, lag: -2 },
+      utilt: { patch: 1, dmg: .95, lag: -2 }, dtilt: { patch: 1, dmg: .95, slow: -1 },
+      usmash: { patch: 1, dmg: .95, slow: -1, lag: -2 },
       fair: { patch: 1, reach: 1.12 }, bair: { patch: 1, reach: 1.08 },
       fsmash: { patch: 1, reach: 1.18, dmg: .96 },
-      nspecial: mk(38, [[0, 'cast_w'], [8, 'cast_h'], [24, null]], [H(9, 13, 1.35, 1.10, .55, 8.5, 361, 24, 82, { sfx: 'zap', fx: 'bolt', sz: 1.3 })], { spec: { k: 'beam', at: 9 } }),
-      sspecial: mk(44, [[0, 'ftilt_w'], [7, 'ftilt_h'], [28, null]], [H(8, 20, 1.10, 1.08, .55, 11.5, 361, 52, 74, { sfx: 'zap', fx: 'bolt', once: 1 })], { spec: { k: 'dash', at: 7, sp: .46, dur: 13, air: 1 } }),
+      nspecial: mk(38, [[0, 'r_cast_w'], [8, 'r_boltCast'], [24, null]], [H(9, 13, 1.35, 1.10, .55, 8.5, 361, 24, 82, { sfx: 'zap', fx: 'bolt', sz: 1.3 })], { spec: { k: 'beam', at: 9 } }),
+      sspecial: mk(44, [[0, 'r_iaiCharge'], [7, 'r_ftilt_h'], [28, null]], [H(8, 20, 1.10, 1.08, .55, 11.5, 361, 52, 74, { sfx: 'zap', fx: 'bolt', once: 1 })], { spec: { k: 'dash', at: 7, sp: .46, dur: 13, air: 1 } }),
       uspecial: mk(50, [[0, 'chargeUp'], [7, 'riseSpin'], [34, 'fall']], [H(8, 12, .20, 1.20, .66, 6.0, 90, 20, 60, { sfx: 'zap', fx: 'bolt' }), H(13, 30, .20, 1.30, .58, 4.0, 82, 12, 40, { id: 1, rehit: 5, sfx: 'lite', fx: 'bolt' })], { spec: { k: 'rise', at: 7, vy: 1.60, vx: .34, dur: 22, helpless: 1, aim: 1 } }),
-      dspecial: mk(46, [[0, 'chargeUp'], [10, 'dsmash_h'], [26, null]], [H(12, 17, 0, 1.00, 1.05, 8.0, 90, 46, 66, { sfx: 'zap', fx: 'bolt', sz: 1.4 })], { spec: { k: 'buff', at: 12, dur: 420 } })
+      dspecial: mk(46, [[0, 'r_charge'], [10, 'r_dsmash_h'], [26, null]], [H(12, 17, 0, 1.00, 1.05, 8.0, 90, 46, 66, { sfx: 'zap', fx: 'bolt', sz: 1.4 })], { spec: { k: 'buff', at: 12, dur: 420 } })
     }
   }
 ];
 
-for (const c of ROSTER) c.moves = cloneMoves(c.over);
+for (const c of ROSTER) c.moves = cloneMoves(c.over, POSE_MAP[c.id]);
 
 /* ════════════════ §5  PHYSICS, STATE MACHINE & COMBAT ════════════════
    Fixed 60Hz simulation. Knockback uses the classic Smash-style curve
@@ -1191,15 +1458,28 @@ const STAGE = {
     { x0: 1.45, x1: 4.55, y: 2.62 },
     { x0: -1.65, x1: 1.65, y: 5.10 }
   ],
-  blast: { l: -19.2, r: 19.2, t: 18.5, b: -11.5 },
+  blast: { l: -19.2, r: 19.2, t: 24.0, b: -11.5 },
   spawn: [[-3.2, 4.4], [3.2, 4.4]]
 };
 
 // Calibrated so an uncharged forward smash KOs a mid-weight fighter around
 // 115% from centre stage, and a fully charged one around 70% — i.e. the same
 // ballpark the genre has trained everyone's instincts on.
-const KB_DECAY = 0.0510;
-const KB_SPEED = 0.0075;
+/* Specials are paid for, not free. The gauge fills mostly by landing hits —
+   that is the point of the rule — but taking damage feeds it too, so a player
+   who is being comboed off the ledge can still afford the way back. */
+const METER_MAX = 100;
+const METER_ON_HIT = 1.35;     // per 1% dealt
+const METER_ON_TAKE = 0.50;    // per 1% received
+const METER_ON_BLOCK = 0.45;   // per 1% absorbed by a shield
+const METER_START = 25;        // on match start and on every fresh stock
+const SPEC_COST = { nspecial: 30, sspecial: 34, dspecial: 28, uspecial: 22 };
+/* A flat price punishes whoever needs their specials most. The zoner lives on
+   hers, so she pays less; the heavy's are near-unblockable, so he pays more. */
+const SPEC_COST_MUL = { kaite: 1.00, ganroh: 1.20, homura: 0.72, rai: 0.94 };
+
+const KB_DECAY = 0.0600;
+const KB_SPEED = 0.0086;
 
 function calcKB(pct, dmg, weight, bkb, kbg) {
   const p = pct;
@@ -1224,6 +1504,7 @@ class Fighter {
     this.jumpsLeft = def.jumps; this.fastFalling = false;
     this.hitlag = 0; this.hitstun = 0; this.tumbling = false;
     this.shieldHP = 50; this.shieldHold = 0;
+    this.meter = METER_START; this.meterFlash = 0; this.meterDeny = 0; this.meterGain = 0;
     this.invuln = 0; this.intang = 0; this.armor = 0;
     this.charge = 0; this.charging = false;
     this.grabTarget = null; this.grabbedBy = null; this.grabTimer = 0; this.mash = 0;
@@ -1305,6 +1586,9 @@ class Fighter {
     if (this.intang > 0) this.intang--;
     if (this.armor > 0) this.armor--;
     if (this.ledgeCooldown > 0) this.ledgeCooldown--;
+    if (this.meterFlash > 0) this.meterFlash--;
+    if (this.meterDeny > 0) this.meterDeny--;
+    if (this.meterGain > 0) this.meterGain--;
     if (this.hitstun > 0) this.hitstun--;
 
     const d = this.def;
@@ -1343,9 +1627,7 @@ class Fighter {
         const ns = Math.max(0, sp - KB_DECAY);
         this.vx *= ns / sp; this.vy *= ns / sp;
       }
-      // gravity fades in as the launch decays: straight line first, arc after
-      const gf = Math.max(0, 1 - Math.hypot(this.vx, this.vy) / 0.55);
-      this.vy -= d.grav * gf;
+      this.vy -= d.grav * 0.85;
       this.vy = Math.max(this.vy, -d.fall * 1.5);
       this.integrate(world);
       if (this.hitstun <= 0) { this.tumbling = Math.hypot(this.vx, this.vy) > 0.28; this.setState(this.grounded ? 'land' : 'air'); }
@@ -1425,6 +1707,26 @@ class Fighter {
   }
 
   friction(k) { this.vx = approach(this.vx, 0, k); }
+  gainMeter(v) {
+    if (this.meter >= METER_MAX) return;
+    this.meter = Math.min(METER_MAX, this.meter + v);
+    this.meterGain = 10;
+  }
+  // the up-special is free whenever it is genuinely being used to get home:
+  // airborne, past the edge or below the lip. On stage it costs like the rest.
+  freeRecovery(n) {
+    return n === 'uspecial' && !this.grounded &&
+      (this.x < STAGE.main.x0 - .35 || this.x > STAGE.main.x1 + .35 || this.y < STAGE.main.top - .25);
+  }
+  specCost(n) { return Math.round((SPEC_COST[n] || 0) * (SPEC_COST_MUL[this.def.id] || 1)); }
+  canSpec(n) { return this.freeRecovery(n) || this.meter >= this.specCost(n); }
+  paySpec(n) {
+    if (this.freeRecovery(n)) return true;
+    const c = this.specCost(n);
+    if (this.meter < c) return false;
+    this.meter -= c; this.meterFlash = 16;
+    return true;
+  }
   onSoft() {
     for (const p of STAGE.soft) if (this.x > p.x0 - .22 && this.x < p.x1 + .22 && Math.abs(this.y - p.y) < .06) return true;
     return false;
@@ -1514,7 +1816,10 @@ class Fighter {
       if (inp.y > .55) n = 'uspecial';
       else if (inp.y < -.55) n = 'dspecial';
       else if (Math.abs(inp.x) > .48) { n = 'sspecial'; this.facing = sign(inp.x); }
-      if (this.def.moves[n]) { this.startMove(n); return true; }
+      if (this.def.moves[n]) {
+        if (!this.paySpec(n)) { this.meterDeny = 20; SFX.deny(); return true; }
+        this.startMove(n); return true;
+      }
     }
     // attack
     if (inp.buf('a') && !this.helpless) {
@@ -1718,6 +2023,7 @@ class Fighter {
       if (o.state === 'shield' || o.state === 'shieldstun') {
         const dmg = h.d * this.staleMul(this.moveName) * (1 + this.charge / 60 * .45) * (this.buff > 0 ? 1.15 : 1);
         o.shieldHP -= dmg * 1.05;
+        this.gainMeter(dmg * METER_ON_BLOCK); o.gainMeter(dmg * METER_ON_BLOCK * .6);
         o.stunLen = Math.floor(dmg * .74 + 3);
         o.setState('shieldstun');
         o.vx += dir * dmg * 0.010;
@@ -1757,6 +2063,10 @@ class Fighter {
     if (!forced) this.pushStale(this.moveName);
     o.pct = Math.min(999, o.pct + dmg);
     this.dmgDealt += dmg;
+    // cap a single hit's contribution, or the heavyweight simply out-earns
+    // everyone and the gauge quietly becomes a power-character subsidy
+    this.gainMeter(Math.min(dmg, 12) * METER_ON_HIT);
+    o.gainMeter(dmg * METER_ON_TAKE);
 
     // armour: heavy attacks still connect but light ones don't launch
     const kbBase = calcKB(o.pct, dmg, o.def.weight, h.bkb, h.kbg);
@@ -1770,6 +2080,11 @@ class Fighter {
     let rad = ang * DEG;
     let vx = Math.cos(rad) * dir, vy = Math.sin(rad);
     if (h.spike) { vx = Math.cos(rad) * dir * .3; vy = -Math.abs(Math.sin(rad)); }
+
+    // A launch that sends you off the stage hands you enough gauge to get back.
+    // Without this a player can be knocked out at 3 meter and simply have no
+    // recovery available — the gauge should gate offence, not execute people.
+    if (kb > 88) o.gainMeter(12);
 
     const speed = kb * KB_SPEED;
     o.vx = vx * speed; o.vy = vy * speed;
@@ -1964,6 +2279,7 @@ class Fighter {
       this.x = this.port === 0 ? -2.2 : 2.2; this.y = 9.0;
       this.vx = 0; this.vy = 0; this.facing = this.port === 0 ? 1 : -1;
       this.pct = 0; this.invuln = 110; this.setState('air');
+      this.meter = METER_START;
       this.jumpsLeft = this.def.jumps;
       this.rig.root.visible = true; this.blob.visible = true;
       this.stale = {};
@@ -2965,6 +3281,12 @@ const SFX = {
     o.start(t); o.stop(t + dur + .05);
   },
 
+  deny() {
+    if (!this.ready || this.muted) return;
+    this.tone(196, .09, .10, 'square', 0, 138);
+    this.tone(98, .13, .07, 'triangle', 0, 74);
+  },
+
   hit(kind, amt) {
     if (!this.ready) return;
     amt = clamp(amt || .5, .1, 1.4);
@@ -3290,7 +3612,7 @@ class AI {
       if (this.dashPrep > 0) this.dashPrep--;
       R.x = clamp(dir * (0.75 + this.aggr * .3) + jitter(), -1, 1);
       if (dy > 1.4 && this.jumpCD <= 0 && Math.random() < .06 + this.aggr * .06) { R.j = true; this.jumpCD = 22; }
-      if (ad > 5.5 && me.def.moves.nspecial && me.def.moves.nspecial.spec && me.def.moves.nspecial.spec.k === 'proj' && this.atkCD <= 0 && Math.random() < .035 * this.lv) {
+      if (ad > 5.5 && me.canSpec('nspecial') && me.def.moves.nspecial && me.def.moves.nspecial.spec && me.def.moves.nspecial.spec.k === 'proj' && this.atkCD <= 0 && Math.random() < .035 * this.lv) {
         R.b = true; this.atkCD = 40; return R;
       }
     } else if (ad < wantRange - .5) {
@@ -3315,7 +3637,7 @@ class AI {
           R.x = dir; R.a = true; this.holdSmash = 6 + Math.random() * 14;
           this.atkCD = 46;
         } else if (high && r < .5) { R.y = 1; R.a = true; this.atkCD = 24; }
-        else if (r < .18 && this.lv >= 4) { R.b = true; if (Math.random() < .4) R.x = dir; this.atkCD = 40; }
+        else if (r < .18 && this.lv >= 4 && me.canSpec(Math.random() < .4 ? 'sspecial' : 'nspecial')) { R.b = true; if (Math.random() < .4) R.x = dir; this.atkCD = 40; }
         else if (r < .34) { R.y = -1; R.a = true; this.atkCD = 20; }
         else if (r < .66) { R.x = dir; R.a = true; this.atkCD = 22; }
         else { R.a = true; this.atkCD = 14; }
@@ -3423,6 +3745,18 @@ const UI = {
       se.style.color = f.def.fx;
       document.getElementById(i === 0 ? 'whoL' : 'whoR').textContent =
         (i === 0 ? 'P1 · ' : (this.mode === 'solo' ? 'CPU Lv' + this.cpuLv + ' · ' : 'P2 · ')) + f.def.name;
+
+      const me = document.getElementById(i === 0 ? 'mtrL' : 'mtrR');
+      const pctM = f.meter / METER_MAX;
+      me.style.color = f.def.fx;
+      me.firstElementChild.style.width = (pctM * 100).toFixed(1) + '%';
+      // "ready" means the cheapest special is actually affordable
+      me.classList.toggle('rdy', f.meter >= f.specCost('uspecial'));
+      me.classList.toggle('deny', f.meterDeny > 0);
+      if (i === 0) {
+        const tb = document.getElementById('tbB');
+        if (tb) tb.style.opacity = f.meter >= f.specCost('uspecial') ? '1' : '.42';
+      }
     }
   },
   // fighters launched past the camera get a screen-edge marker, the same way
